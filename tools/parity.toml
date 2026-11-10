@@ -168,3 +168,21 @@ at = "0f,20f,47f,60f,90f,100f,150f,155f,170f,199f,205f,225f,245f,260f,275f,295f,
 args = []
 renderer = "skia-cpu"
 max_diff = 0
+
+[svg-in-3d]
+script = "examples/svg_in_3d.py"
+rust_bin = "svg-in-3d"
+example_dir = "svg-in-3d"
+at = "0s,1s,2.5s,4s,5.5s,7s,7.95s"
+args = ["--cpu"]
+renderer = "cpu"
+max_diff = 0
+# The audio comes from the WAV files that arm-soundtrack writes to dynamic_media.
+[arm]
+script = "examples/arm/__main__.py"
+rust_bin = "arm"
+example_dir = "arm"
+at = "0.5s,2s,5s,9s,14.6s,15.5s,16.3s,18.5s,24s,29s,34.8s,36.9s"
+args = ["--cpu"]
+renderer = "cpu"
+max_diff = 0

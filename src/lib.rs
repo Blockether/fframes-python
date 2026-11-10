@@ -14,6 +14,7 @@ mod rng;
 mod runtime;
 mod svgr;
 mod synth;
+mod three_d;
 mod timing;
 mod values;
 mod video;
@@ -59,5 +60,6 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(exif::exif, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
     m.add_function(wrap_pyfunction!(waves::wave_path, m)?)?;
+    three_d::register(m)?;
     Ok(())
 }
