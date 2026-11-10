@@ -275,3 +275,177 @@ impl Biquad {
         y
     }
 }
+
+/// The phase (0..1) of an oscillator after each of `n` steps: `phase = (phase + step).fract()`
+/// in f32. `step` is one phase step (frequency / sample rate) or one per sample.
+#[pyfunction]
+#[pyo3(signature = (step, n, phase = 0.0))]
+pub fn phasor<'py>(
+    py: Python<'py>,
+    step: &Bound<'py, PyAny>,
+    n: usize,
+    phase: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let steps = values_or_one(step)?;
+    if steps.len() != 1 && steps.len() != n {
+        return Err(PyValueError::new_err("step needs one value or n values"));
+    }
+    let output = py.detach(|| {
+        let mut phase = phase;
+        (0..n)
+            .map(|i| {
+                phase = (phase + steps[if steps.len() == 1 { 0 } else { i }]).fract();
+                phase
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// `n` samples of a sine oscillator from `phase` (0..1): each sample is `sin(phase * TAU)`,
+/// then `phase = (phase + freq / sample_rate).fract()`, in f32. `freq` is one frequency in
+/// Hz or one per sample.
+#[pyfunction]
+#[pyo3(signature = (freq, n, phase = 0.0, sample_rate = 48_000.0))]
+pub fn sine<'py>(
+    py: Python<'py>,
+    freq: &Bound<'py, PyAny>,
+    n: usize,
+    phase: f32,
+    sample_rate: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let freqs = values_or_one(freq)?;
+    if freqs.len() != 1 && freqs.len() != n {
+        return Err(PyValueError::new_err("freq needs one value or n values"));
+    }
+    let output = py.detach(|| {
+        let mut phase = phase;
+        (0..n)
+            .map(|i| {
+                let y = (phase * TAU).sin();
+                phase = (phase + freqs[if freqs.len() == 1 { 0 } else { i }] / sample_rate).fract();
+                y
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// A one-pole smoother: `value += (target - value) * coef` for each sample, from `value`.
+/// Returns the value after each step.
+#[pyfunction]
+#[pyo3(signature = (target, coef, value = 0.0))]
+pub fn one_pole<'py>(
+    py: Python<'py>,
+    target: &Bound<'py, PyAny>,
+    coef: f32,
+    value: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let target = samples(target)?;
+    let output = py.detach(|| {
+        let mut value = value;
+        target
+            .iter()
+            .map(|t| {
+                value += (t - value) * coef;
+                value
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// `n` samples of a Karplus-Strong string: the delay line starts as `excitation`, and each
+/// read replaces a value with the midpoint of it and the next value, times `damping`.
+#[pyfunction]
+pub fn karplus_strong<'py>(
+    py: Python<'py>,
+    excitation: &Bound<'py, PyAny>,
+    n: usize,
+    damping: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let mut buf = samples(excitation)?;
+    if buf.is_empty() {
+        return Err(PyValueError::new_err("excitation must not be empty"));
+    }
+    let output = py.detach(|| {
+        let len = buf.len();
+        let mut i = 0;
+        (0..n)
+            .map(|_| {
+                let j = if i + 1 == len { 0 } else { i + 1 };
+                let y = buf[i];
+                buf[i] = f32::midpoint(buf[i], buf[j]) * damping;
+                i = j;
+                y
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// A Freeverb comb filter with a delay of `size` samples: returns the delayed value of each
+/// sample. The low pass `store = y * (1 - damp) + store * damp` feeds back with `feedback`,
+/// and the input enters scaled by `gain`.
+#[pyfunction]
+#[pyo3(signature = (samples, size, feedback, damp, gain = 0.015))]
+pub fn comb<'py>(
+    py: Python<'py>,
+    samples: &Bound<'py, PyAny>,
+    size: usize,
+    feedback: f32,
+    damp: f32,
+    gain: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let input = self::samples(samples)?;
+    if size == 0 {
+        return Err(PyValueError::new_err("size must be at least 1"));
+    }
+    let output = py.detach(|| {
+        let mut buf = vec![0.0f32; size];
+        let mut idx = 0;
+        let mut store = 0.0f32;
+        input
+            .iter()
+            .map(|x| {
+                let y = buf[idx];
+                store = y * (1.0 - damp) + store * damp;
+                buf[idx] = x * gain + store * feedback;
+                idx = if idx + 1 == size { 0 } else { idx + 1 };
+                y
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// A Freeverb all-pass filter with a delay of `size` samples: `y = -x + b` and the delay
+/// line takes `x + b * feedback`, where `b` is the delayed value.
+#[pyfunction]
+#[pyo3(signature = (samples, size, feedback = 0.5))]
+pub fn allpass<'py>(
+    py: Python<'py>,
+    samples: &Bound<'py, PyAny>,
+    size: usize,
+    feedback: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let input = self::samples(samples)?;
+    if size == 0 {
+        return Err(PyValueError::new_err("size must be at least 1"));
+    }
+    let output = py.detach(|| {
+        let mut buf = vec![0.0f32; size];
+        let mut idx = 0;
+        input
+            .iter()
+            .map(|x| {
+                let b = buf[idx];
+                let y = -*x + b;
+                buf[idx] = *x + b * feedback;
+                idx = if idx + 1 == size { 0 } else { idx + 1 };
+                y
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
