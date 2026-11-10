@@ -353,6 +353,9 @@ def cli(
     concurrency: int | None = None,
     text_cache_capacity: int | None = None,
     renderer: Literal["cpu", "skia-cpu", "gpu"] | None = None,
-    gpu_contexts: int | None = None,
+    gpu_contexts: int | Literal["max"] | None = None,
     buffer_queue_size: int | None = None,
+    master_gain_db: float = 0.0,
+    limiter: bool | dict[str, float] | None = None,
+    declick: bool = True,
 ) -> int: ...

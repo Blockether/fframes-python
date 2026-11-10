@@ -7,12 +7,12 @@ use fframes::cpu::CpuRenderingBackend;
 use fframes::ffmpeg_sys_fframes::{
     AVPixelFormat, AVSampleFormat, av_get_pix_fmt, av_get_sample_fmt,
 };
-use fframes::{EncoderOptions, YuvMatrix};
+use fframes::{AudioMixOptions, EncoderOptions, LimiterOptions, YuvMatrix};
 use fframes_skia_renderer::cli::SkiaRenderers;
 use fframes_skia_renderer::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
-use pyo3::exceptions::{PyKeyError, PyValueError};
+use pyo3::exceptions::{PyKeyError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyBool, PyDict};
 
 /// The `EncoderOptions` fields of a `video_options` or `audio_options` dict, owned.
 #[derive(Default)]
@@ -153,10 +153,11 @@ pub fn backend(
 }
 
 /// The Skia renderers: `renderer` renders without `--renderer` ("cpu", "skia-cpu", "gpu";
-/// `None` for the CPU backend), on `gpu_contexts` contexts with `buffer_queue_size` frames.
+/// `None` for the CPU backend), on `gpu_contexts` contexts ("max" or a positive int) with
+/// `buffer_queue_size` frames.
 pub fn skia(
     renderer: Option<&str>,
-    gpu_contexts: Option<usize>,
+    gpu_contexts: Option<&Bound<'_, PyAny>>,
     buffer_queue_size: Option<usize>,
 ) -> PyResult<SkiaRenderers> {
     let default = match renderer {
@@ -167,15 +168,67 @@ pub fn skia(
         Some(other) => return Err(PyValueError::new_err(format!("unknown renderer {other:?}"))),
     };
     let defaults = SkiaPipelineConfig::default();
+    let concurrency_policy = match gpu_contexts.filter(|value| !value.is_none()) {
+        None => defaults.concurrency_policy,
+        Some(value) if value.extract::<&str>().ok() == Some("max") => {
+            SkiaPipelineConcurrencyPolicy::MaxPerformance
+        }
+        Some(value) => match value.extract::<usize>() {
+            Ok(1) => SkiaPipelineConcurrencyPolicy::OnePipeline,
+            Ok(n) if n > 1 => SkiaPipelineConcurrencyPolicy::Concurrency(n),
+            _ => {
+                return Err(PyValueError::new_err(
+                    "gpu_contexts must be 'max' or a positive int",
+                ));
+            }
+        },
+    };
     Ok(SkiaRenderers {
         default,
         pipeline: SkiaPipelineConfig {
             buffer_queue_size: buffer_queue_size.unwrap_or(defaults.buffer_queue_size),
-            concurrency_policy: gpu_contexts.map_or(
-                defaults.concurrency_policy,
-                SkiaPipelineConcurrencyPolicy::Concurrency,
-            ),
+            concurrency_policy,
             ..defaults
         },
+    })
+}
+
+/// The master bus. `limiter`: None or True (the default limiter), False (none) or a dict with
+/// `ceiling_db`, `lookahead_ms` and `release_ms`.
+pub fn audio_mix(
+    master_gain_db: f32,
+    limiter: Option<&Bound<'_, PyAny>>,
+    declick: bool,
+) -> PyResult<AudioMixOptions> {
+    let limiter = match limiter.filter(|value| !value.is_none()) {
+        None => Some(LimiterOptions::default()),
+        Some(value) if value.is_instance_of::<PyBool>() => {
+            value.extract::<bool>()?.then(LimiterOptions::default)
+        }
+        Some(value) => {
+            let dict = value
+                .cast::<PyDict>()
+                .map_err(|_| PyTypeError::new_err("limiter must be None, a bool or a dict"))?;
+            let mut options = LimiterOptions::default();
+            for (key, value) in dict.iter() {
+                let value: f32 = value.extract()?;
+                match key.extract::<&str>()? {
+                    "ceiling_db" => options.ceiling_db = value,
+                    "lookahead_ms" => options.lookahead_ms = value,
+                    "release_ms" => options.release_ms = value,
+                    other => {
+                        return Err(PyKeyError::new_err(format!(
+                            "unknown limiter option {other:?}"
+                        )));
+                    }
+                }
+            }
+            Some(options)
+        }
+    };
+    Ok(AudioMixOptions {
+        master_gain_db,
+        limiter,
+        declick,
     })
 }
