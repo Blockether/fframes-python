@@ -698,7 +698,7 @@ def signature(frame, s):
     )
 
 
-STACK_X = [F(720.0) + F(math.cos(F(i) * F(0.55))) * F(130.0) for i in range(12)]
+STACK_X = [F(720.0) + objects.cos(F(i) * F(0.55)) * F(130.0) for i in range(12)]
 
 
 class Shot:

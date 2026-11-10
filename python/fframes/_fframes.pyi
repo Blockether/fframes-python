@@ -455,11 +455,14 @@ def saw(freq: float | Samples, n: int, phase: float = 0.0, sample_rate: float = 
     """`n` f32 samples of a polyBLEP sawtooth; `freq` is one value or one per sample."""
 
 def f32_math(
-    op: Literal["sin", "cos", "exp", "tanh", "powf"],
+    op: Literal["sin", "cos", "exp", "tanh", "powf", "sin_cos"],
     x: float | Samples,
     y: float | Samples | None = None,
 ) -> bytes:
-    """`op` over f32 samples with Rust f32 math; `y` is the exponent of `powf`."""
+    """`op` over f32 samples with Rust f32 math; `y` is the exponent of `powf`.
+
+    `sin_cos` is `f32::sin_cos`: sine and cosine of each value, in turns. It can differ from
+    `sin` and `cos`, because the compiler joins them into one `sincos` call."""
 
 def phasor(step: float | Samples, n: int, phase: float = 0.0) -> bytes:
     """The f32 phase after each of `n` steps of `phase = (phase + step).fract()`."""

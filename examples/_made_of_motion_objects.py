@@ -18,15 +18,24 @@ ONE = F(1.0)
 
 
 def sin(a):
-    return F(math.sin(a))
+    """Rust `f32::sin`. It is not always the f64 `sin` rounded to f32."""
+    return np.frombuffer(ff.f32_math("sin", float(a)), "<f4")[0]
 
 
 def cos(a):
-    return F(math.cos(a))
+    """Rust `f32::cos`."""
+    return np.frombuffer(ff.f32_math("cos", float(a)), "<f4")[0]
+
+
+def sin_cos(a):
+    """Rust `f32::sin_cos`, also a `sin` and a `cos` of one value in one function: the compiler
+    joins them into one `sincos` call, which is not always `sin` and `cos`."""
+    s, c = np.frombuffer(ff.f32_math("sin_cos", float(a)), "<f4")
+    return s, c
 
 
 def turn(p, a, b, angle):
-    s, c = sin(angle), cos(angle)
+    s, c = sin_cos(angle)
     p = list(p)
     p[a], p[b] = c * p[a] - s * p[b], s * p[a] + c * p[b]
     return p
@@ -296,7 +305,7 @@ def base_choreography():
             for i, icon in enumerate(ORDER):
                 fi = F(i)
                 a = fi * TAU / F(12.0) + rotation - PI * F(0.5)
-                s, c = sin(a), cos(a)
+                s, c = sin_cos(a)
                 x = c * radius
                 y = s * radius * plane
                 z = F(1250.0) - s * F(600.0) * F(math.sqrt(ONE - plane * plane))
@@ -304,11 +313,12 @@ def base_choreography():
                     a0 = fi * TAU / F(12.0) + scatter_rotation - PI * F(0.5)
                     drift = max(t - F(13.0), ZERO)
                     tx, ty = F(TARGETS[i][0]), F(TARGETS[i][1])
-                    x = cos(a0) * radius * (ONE - opened) + tx * opened + drift * F(45.0) * sin(a0)
+                    sin0, cos0 = sin_cos(a0)
+                    x = cos0 * radius * (ONE - opened) + tx * opened + drift * F(45.0) * sin0
                     y = (
-                        sin(a0) * radius * F(0.98) * (ONE - opened)
+                        sin0 * radius * F(0.98) * (ONE - opened)
                         + ty * opened
-                        + drift * F(32.0) * cos(a0)
+                        + drift * F(32.0) * cos0
                     )
                     z = F(1250.0) + opened * sin(fi * F(3.7)) * F(140.0)
                 roll = sin(t * F(0.9) + fi) * F(0.12) + opened * (t - F(12.58)) * (fi - F(5.0)) * F(

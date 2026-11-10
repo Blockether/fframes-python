@@ -193,8 +193,11 @@ pub fn saw<'py>(
 }
 
 /// Rust `f32` math over buffers, bit for bit the same as `f32::sin` and the others:
-/// `op` is "sin", "cos", "exp", "tanh" (of `x`) or "powf" (`x` to the power `y`).
-/// `x` and `y` are numbers or buffers of one length. Returns `bytes` of little-endian f32.
+/// `op` is "sin", "cos", "exp", "tanh" (of `x`), "powf" (`x` to the power `y`) or "sin_cos"
+/// (`f32::sin_cos` of `x`: sine and cosine of each value, in turns). The compiler can join a
+/// sine and a cosine of one value into one `sincos` call, whose results are not always those
+/// of "sin" and "cos". `x` and `y` are numbers or buffers of one length. Returns `bytes` of
+/// little-endian f32.
 #[pyfunction]
 #[pyo3(signature = (op, x, y = None))]
 pub fn f32_math<'py>(
@@ -204,6 +207,19 @@ pub fn f32_math<'py>(
     y: Option<&Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let x = values_or_one(x)?;
+    if op == "sin_cos" {
+        if y.is_some() {
+            return Err(PyValueError::new_err("only powf takes y"));
+        }
+        let output = x
+            .iter()
+            .flat_map(|v| {
+                let (s, c) = v.sin_cos();
+                [s, c]
+            })
+            .collect::<Vec<f32>>();
+        return Ok(to_bytes(py, &output));
+    }
     let unary: Option<fn(f32) -> f32> = match op {
         "sin" => Some(f32::sin),
         "cos" => Some(f32::cos),
@@ -212,7 +228,7 @@ pub fn f32_math<'py>(
         "powf" => None,
         _ => {
             return Err(PyValueError::new_err(format!(
-                "unknown op {op:?}: use sin, cos, exp, tanh or powf"
+                "unknown op {op:?}: use sin, cos, exp, tanh, powf or sin_cos"
             )));
         }
     };
