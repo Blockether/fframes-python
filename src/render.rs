@@ -91,14 +91,14 @@ pub fn cli(
         None if encoder.as_deref() == Some("libx264") => DEFAULT_CODEC_PARAMS.to_vec(),
         None => Vec::new(),
     };
-    let tmp_dir = tmp_dir.unwrap_or_else(|| std::env::temp_dir().join("fframes-python"));
     let options = RenderOptions {
         media: media
             .as_deref()
             .map(|media| media.provider() as &dyn fframes::MediaProvider<'_>),
         load_system_fonts,
         default_font: &default_font,
-        tmp_files_directory: Some(&tmp_dir),
+        // Without a directory fframes makes a new one per render, so renders can run at once.
+        tmp_files_directory: tmp_dir.as_ref(),
         abort_signal: Some(&video.failure.abort),
         video_encoder_options: EncoderOptions {
             preferred_encoder: encoder.as_deref(),
