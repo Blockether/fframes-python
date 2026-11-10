@@ -347,4 +347,8 @@ def cli(
     codec_params: dict[str, str] | None = None,
     tmp_dir: str | None = None,
     default_output: str | None = None,
+    renderer: Literal["cpu", "skia-cpu", "gpu"] | None = None,
+    gpu_max_performance: bool = False,
+    master_gain_db: float = 0.0,
+    limiter_ceiling_db: float | None = -1.0,
 ) -> int: ...

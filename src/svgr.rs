@@ -842,24 +842,28 @@ fn parse_children(node: &roxmltree::Node<'_, '_>) -> PyResult<Vec<TChild>> {
     Ok(children)
 }
 
-/// Collapses XML whitespace like SVG `xml:space="default"`: runs of whitespace become one space,
-/// the first text of an element loses its leading space, the last its trailing space, and pure
-/// indentation (whitespace with a line break) disappears.
+/// Collapses the indentation of the markup: a run of whitespace with a line break becomes one
+/// space, the first text of an element loses its leading space, the last its trailing space, and
+/// pure indentation disappears. Other runs stay as they are, like the text literals of `svgr!`.
 fn normalize_text(text: &str, is_first: bool, is_last: bool) -> Option<String> {
     if text.trim().is_empty() && text.contains('\n') {
         return None;
     }
     let mut out = String::with_capacity(text.len());
-    let mut in_space = false;
-    for c in text.chars() {
+    let mut run = String::new();
+    for c in text.chars().chain(std::iter::once('\0')) {
         if c.is_whitespace() {
-            if !in_space {
-                out.push(' ');
-            }
-            in_space = true;
+            run.push(c);
+            continue;
+        }
+        if run.contains('\n') {
+            out.push(' ');
         } else {
+            out.push_str(&run);
+        }
+        run.clear();
+        if c != '\0' {
             out.push(c);
-            in_space = false;
         }
     }
     let mut out = out.as_str();

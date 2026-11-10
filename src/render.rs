@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
-use fframes::cli::{Cli, NoArgs};
-use fframes::{EncoderOptions, RenderOptions};
+use fframes::cli::{Cli, NoArgs, Renderer};
+use fframes::{AudioMixOptions, EncoderOptions, LimiterOptions, RenderOptions};
 use fframes_skia_renderer::cli::SkiaRenderers;
+use fframes_skia_renderer::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
@@ -24,6 +25,18 @@ struct AssertSend<T>(T);
 // `Python::attach`.
 unsafe impl<T> Send for AssertSend<T> {}
 
+/// The backend named like the `--renderer` values.
+fn renderer(name: &str) -> PyResult<Renderer> {
+    match name {
+        "cpu" => Ok(Renderer::Cpu),
+        "skia-cpu" => Ok(Renderer::SkiaCpu),
+        "gpu" => Ok(Renderer::Gpu),
+        _ => Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "renderer must be 'cpu', 'skia-cpu' or 'gpu', not {name:?}"
+        ))),
+    }
+}
+
 fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(String, String)>>> {
     let Some(params) = params else {
         return Ok(None);
@@ -39,6 +52,9 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
 ///
 /// `argv` defaults to `sys.argv`. The encoder settings apply to `render`; the defaults are
 /// the ones of the fframes examples (libx264, crf 23, preset ultrafast, tune animation).
+/// `renderer` is the backend without `--renderer` (`None`: the built-in CPU backend);
+/// `gpu_max_performance` renders on several GPU contexts. `master_gain_db` and
+/// `limiter_ceiling_db` (`None`: no limiter) set the master bus of the audio mix.
 #[pyfunction]
 #[pyo3(signature = (
     video,
@@ -51,6 +67,10 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     codec_params = None,
     tmp_dir = None,
     default_output = None,
+    renderer = None,
+    gpu_max_performance = false,
+    master_gain_db = 0.0,
+    limiter_ceiling_db = Some(-1.0),
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -64,7 +84,12 @@ pub fn cli(
     codec_params: Option<&Bound<'_, PyDict>>,
     tmp_dir: Option<PathBuf>,
     default_output: Option<PathBuf>,
+    renderer: Option<String>,
+    gpu_max_performance: bool,
+    master_gain_db: f32,
+    limiter_ceiling_db: Option<f32>,
 ) -> PyResult<i32> {
+    let default = renderer.as_deref().map(self::renderer).transpose()?;
     let argv = match argv {
         Some(argv) => argv,
         None => py.import("sys")?.getattr("argv")?.extract()?,
@@ -99,11 +124,27 @@ pub fn cli(
             codec_params: (!params.is_empty()).then_some(params.as_slice()),
             ..Default::default()
         },
+        audio_mix: AudioMixOptions {
+            master_gain_db,
+            limiter: limiter_ceiling_db.map(|ceiling_db| LimiterOptions {
+                ceiling_db,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let pipeline = SkiaPipelineConfig {
+        concurrency_policy: if gpu_max_performance {
+            SkiaPipelineConcurrencyPolicy::MaxPerformance
+        } else {
+            SkiaPipelineConcurrencyPolicy::OnePipeline
+        },
         ..Default::default()
     };
     let mut runner = fframes::cli::new(&video, options)
         .args(args)
-        .renderers(SkiaRenderers::default());
+        .renderers(SkiaRenderers { default, pipeline });
     if let Some(output) = default_output {
         runner = runner.default_output(output);
     }
