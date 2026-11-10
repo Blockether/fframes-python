@@ -42,6 +42,7 @@ class Sheet:
     output: str
     frames: tuple[int, ...]
     attachment_id: str | None = None
+    diagnostics: Annotated[tuple[dict, ...], "Findings, each with its frame"] = ()
 
 
 def _root() -> Path:
@@ -130,7 +131,11 @@ def _strip_activity(*, phase, result, **_):
     content = (
         (vis.ActivityImage(result.attachment_id, "Contact sheet"),) if result.attachment_id else ()
     )
-    return vis.ActivityPresentation("Make contact sheet", f"{len(result.frames)} frames", content)
+    summary = f"{len(result.frames)} frames" + (
+        f", {len(result.diagnostics)} findings" if result.diagnostics else ""
+    )
+    found = _findings(result.diagnostics)
+    return vis.ActivityPresentation("Make contact sheet", summary, content + found)
 
 
 def _new_activity(*, phase, result, **_):
@@ -268,7 +273,7 @@ class FFrames:
             if attach
             else None
         )
-        return Sheet(sheet.output, sheet.frames, aid)
+        return Sheet(sheet.output, sheet.frames, aid, sheet.diagnostics)
 
     @vis.method(
         tag="mutation",

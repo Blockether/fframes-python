@@ -103,7 +103,7 @@ class Inspection:
 class Strip:
     output: Annotated[str, "The contact sheet PNG"]
     frames: tuple[int, ...]
-    diagnostics: tuple[dict[str, Any], ...] = ()
+    diagnostics: Annotated[tuple[dict[str, Any], ...], "Findings, each with its frame"] = ()
 
 
 def find_python(script: Path, python: str | None = None) -> str:
@@ -130,18 +130,24 @@ def run_json(
     python: str | None = None,
     cwd: str | os.PathLike[str] | None = None,
     timeout_s: float = 3600,
+    exit_codes: tuple[int, ...] = (0,),
 ) -> Any:
-    """Run ``python script [script_args] --json [options] command`` and parse its JSON."""
+    """Run ``python script [script_args] --json [options] command`` and parse its JSON.
+
+    ``exit_codes``: the exit codes that still give a result (``inspect`` exits 1 on errors).
+    """
     path = Path(script)
     if cwd is not None and not path.is_absolute():
         path = Path(cwd) / path
     if not path.is_file():
         raise FileNotFoundError(f"no video script at {path}")
+    if scale is not None and scale <= 0:
+        raise ValueError(f"scale must be positive, not {scale}")
     argv = [find_python(path, python), str(path), *script_args, "--json"]
     if renderer:
         argv += ["--renderer", renderer]
     if scale is not None:
-        argv += ["--scale", str(scale)]
+        argv += [f"--scale={scale}"]
     argv += command
     try:
         done = subprocess.run(
@@ -159,14 +165,15 @@ def run_json(
     cause = _python_traceback(done.stderr)
     if isinstance(data, dict) and "error" in data and len(data) == 1:
         error = ANSI.sub("", str(data["error"])).strip()
-        raise FFramesError(f"{cause}\n(fframes: {error})" if cause else error)
-    if done.returncode != 0 or data is None:
+        # A Python exception is the cause; the fframes error that follows it is a result.
+        raise FFramesError(cause or error)
+    if done.returncode not in exit_codes or data is None:
         tail = cause or "\n".join(done.stderr.strip().splitlines()[-15:])
         if "No module named 'fframes'" in done.stderr:
             tail += (
                 f"\nfframes is not installed for {argv[0]}: pip install fframes, or pass python=..."
             )
-        raise FFramesError(tail or f"{path.name} exited with {done.returncode} and no JSON")
+        raise FFramesError(tail or f"{path.name} exited with {done.returncode}")
     return data
 
 
@@ -261,16 +268,19 @@ def render(
 
 def inspect(script: str | os.PathLike[str], **kw: Any) -> Inspection:
     """Check frames for missing media and fonts, clipped text and errors, without encoding."""
-    d = run_json(script, ["inspect"], **kw)
+    d = run_json(script, ["inspect"], exit_codes=(0, 1), **kw)
     return Inspection(checked_frames=d["checked_frames"], findings=_tuple(d.get("findings")))
 
 
 def strip(script: str | os.PathLike[str], output: str | os.PathLike[str], **kw: Any) -> Strip:
     """A labelled contact sheet of evenly spaced frames in one PNG."""
     d = run_json(script, ["strip", "-o", str(output)], **kw)
-    return Strip(
-        output=d["output"], frames=_tuple(d.get("frames")), diagnostics=_tuple(d.get("diagnostics"))
+    found = tuple(
+        {"frame": shot["frame"], **item}
+        for shot in d.get("diagnostics") or ()
+        for item in shot.get("diagnostics") or ()
     )
+    return Strip(output=d["output"], frames=_tuple(d.get("frames")), diagnostics=found)
 
 
 def new(

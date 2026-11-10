@@ -95,6 +95,34 @@ def test_render_frame_errors_name_their_cause(starter, tmp_path):
             call()
         assert "ValueError: boom at frame 10" in str(error.value)
         assert "unsendable" not in str(error.value) and "\x1b" not in str(error.value)
+        assert "NoRootNode" not in str(error.value)
+
+
+def test_inspect_reports_missing_media(tmp_path):
+    script = tmp_path / "photo.py"
+    script.write_text(
+        "import sys\n"
+        "import fframes as ff\n"
+        'T = ff.template(\'<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">\'\n'
+        '                \'<image href="{img}" width="64" height="64"/></svg>\')\n'
+        "class V:\n"
+        "    width, height, fps, duration = 64, 64, 10, 1.0\n"
+        "    def render_frame(self, frame, ctx):\n"
+        "        return T(img=ctx.image('nope.png'))\n"
+        f"sys.exit(ff.cli(V(), media=ff.Media({str(tmp_path)!r})))\n"
+    )
+    found = v.inspect(script)
+    assert found.checked_frames > 0
+    assert any("nope.png" in f["message"] and f["severity"] == "error" for f in found.findings)
+    sheet = v.strip(script, tmp_path / "sheet.png")
+    assert any("nope.png" in f["message"] and f["frame"] >= 0 for f in sheet.diagnostics)
+
+
+def test_scale_must_be_positive(starter, tmp_path):
+    for scale in (0, -1):
+        with pytest.raises(ValueError, match="scale"):
+            v.frames(starter, "0s", tmp_path, scale=scale)
+    assert v.frames(starter, "0s", tmp_path, scale=0.5)[0].frame == 0
 
 
 def test_missing_fframes_is_explained(starter, monkeypatch, tmp_path):
