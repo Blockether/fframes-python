@@ -17,6 +17,7 @@ import _media
 import fframes as ff
 import numpy as np
 import soundtrack
+from _f32 import fmt32
 from beat import (
     BEAT,
     CAPTION,
@@ -82,18 +83,13 @@ INF = F(math.inf)
 
 
 def f32_text(x) -> str:
-    """`x` as Rust prints an f32 with `{}`: the shortest text that reads back to the same f32."""
-    x = F(x)
-    for digits in range(1, 10):
-        text = f"{float(x):.{digits}g}"
-        if F(float(text)) == x:
-            return text
-    return repr(float(x))
+    """`x` as Rust prints an f32 with `{}`: the shortest text that reads back, no exponent."""
+    return fmt32(float(F(x)))
 
 
 def sin(x) -> np.float32:
-    """`f32::sin`: correctly rounded, which `np.sin` on float32 is not always."""
-    return F(math.sin(float(x)))
+    """Rust `f32::sin`. It is not always the f64 `sin` rounded to f32."""
+    return soundtrack.math("sin", x)
 
 
 # ------------------------------------------------------------------ Motion
@@ -401,7 +397,7 @@ class Zoom:
         base = size / F(1024.0)
         pupil = (x + PUPIL[0] * base, y + PUPIL[1] * base)
         dive = progress(frame, DIVE, ZOOM)
-        zoom = F(math.pow(float(ZOOM_MAX), float(dive)))
+        zoom = soundtrack.math("powf", ZOOM_MAX, dive)
         # the pupil travels to the middle of the safe area while the camera dives
         target = (
             F(540.0) + (pupil[0] - F(540.0)) * (F(1.0) - dive),
