@@ -101,3 +101,32 @@ args = []
 renderer = "cpu"
 max_diff = 0
 video_exact = false
+
+[conference-splash-screen]
+script = "examples/conference_splash_screen.py"
+rust_bin = "conference_splash_screen_bin"
+example_dir = "conference-splash-screen"
+at = "0s,1s,2.1s,3.5s,3.8s,4.5s,5s,5.5s,6s,7.6s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[low-poly-art]
+script = "examples/low_poly_art/main.py"
+rust_bin = "low_poly_art_example_bin"
+example_dir = "low-poly-art"
+at = "0s,0.5s,1s,2.7s,5s,7.33s,9.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+# RenderingScene (6.33s..8.67s) draws an FPS counter from rand::random(), so two Rust renders
+# differ there too. These timestamps cover every other scene and each embedded preview.
+[beta]
+script = "examples/beta/main.py"
+rust_bin = "beta_example_bin"
+example_dir = "beta"
+at = "1s,2s,4.5s,10s,13s,15s,16.5s,18s,22.5s,24.5s,26.5s,29s,31s,31.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
