@@ -35,7 +35,11 @@ pub fn renderers(
             match contexts.extract::<usize>() {
                 Ok(1) => SkiaPipelineConcurrencyPolicy::OnePipeline,
                 Ok(n) if n > 1 => SkiaPipelineConcurrencyPolicy::Concurrency(n),
-                _ => return Err(PyValueError::new_err("gpu_contexts must be 'max' or a positive int")),
+                _ => {
+                    return Err(PyValueError::new_err(
+                        "gpu_contexts must be 'max' or a positive int",
+                    ));
+                }
             }
         };
     }
@@ -74,18 +78,27 @@ fn limiter_options(limiter: &Bound<'_, PyAny>) -> PyResult<Option<LimiterOptions
                 "ceiling_db" => options.ceiling_db = value,
                 "lookahead_ms" => options.lookahead_ms = value,
                 "release_ms" => options.release_ms = value,
-                other => return Err(PyValueError::new_err(format!("unknown limiter option {other:?}"))),
+                other => {
+                    return Err(PyValueError::new_err(format!(
+                        "unknown limiter option {other:?}"
+                    )));
+                }
             }
         }
         Some(options)
     } else {
-        return Err(PyTypeError::new_err("limiter must be a bool, None or a dict"));
+        return Err(PyTypeError::new_err(
+            "limiter must be a bool, None or a dict",
+        ));
     })
 }
 
 /// Sets the rate control of `options` from a dict with `qmin`, `qmax`, `qcompress`,
 /// `max_qdiff` and `gop_size`.
-pub fn rate_control(options: &mut EncoderOptions<'_>, values: Option<&Bound<'_, PyDict>>) -> PyResult<()> {
+pub fn rate_control(
+    options: &mut EncoderOptions<'_>,
+    values: Option<&Bound<'_, PyDict>>,
+) -> PyResult<()> {
     let Some(values) = values else {
         return Ok(());
     };
@@ -96,7 +109,11 @@ pub fn rate_control(options: &mut EncoderOptions<'_>, values: Option<&Bound<'_, 
             "qcompress" => options.qcompress = value.extract()?,
             "max_qdiff" => options.max_qdiff = value.extract()?,
             "gop_size" => options.gop_size = value.extract()?,
-            other => return Err(PyValueError::new_err(format!("unknown rate control option {other:?}"))),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "unknown rate control option {other:?}"
+                )));
+            }
         }
     }
     Ok(())

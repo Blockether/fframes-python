@@ -2,6 +2,7 @@
 
 mod animation;
 mod frame;
+mod gil;
 mod media;
 mod media_api;
 mod render;

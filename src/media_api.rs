@@ -341,16 +341,17 @@ impl PyClip {
     #[pyo3(signature = (frame, ctx, width = None))]
     fn image(
         &self,
+        py: Python<'_>,
         frame: &PyFrame,
         ctx: &crate::frame::PyContext,
         width: Option<u32>,
     ) -> PyResult<Option<PyImage>> {
         let ctx = ctx.get()?;
         let clip = self.build();
-        let image = match width {
+        let image = crate::gil::detached(py, || match width {
             Some(width) => clip.image_at_width(&frame.inner, ctx, width),
             None => clip.image(&frame.inner, ctx),
-        };
+        });
         Ok(image.map(|image| PyImage { data: image.image }))
     }
 }

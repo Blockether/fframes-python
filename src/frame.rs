@@ -170,7 +170,11 @@ impl PyFrame {
             speed,
             ..Default::default()
         };
-        match self.inner.get_synced_video_frame(ctx.get()?, file, &input) {
+        let ctx = ctx.get()?;
+        let frame = crate::gil::detached(py, || {
+            self.inner.get_synced_video_frame(ctx, file, &input)
+        });
+        match frame {
             Some(frame) => media_api::video_frame(py, &*frame, width, height),
             None => Ok(None),
         }
@@ -187,7 +191,9 @@ impl PyFrame {
         width: Option<u32>,
         height: Option<u32>,
     ) -> PyResult<Option<PyVideoFrame>> {
-        match self.inner.video_frame_at(ctx.get()?, file, seconds, None) {
+        let ctx = ctx.get()?;
+        let frame = crate::gil::detached(py, || self.inner.video_frame_at(ctx, file, seconds, None));
+        match frame {
             Some(frame) => media_api::video_frame(py, &*frame, width, height),
             None => Ok(None),
         }

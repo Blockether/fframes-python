@@ -18,6 +18,8 @@ simplecss = "0.2.2"
 clap = { version = "4.5", features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# Hardware video decoding and the `hevc_videotoolbox`/`h264_videotoolbox` encoders.
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["videotoolbox"] }
 fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["metal", "cli"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
