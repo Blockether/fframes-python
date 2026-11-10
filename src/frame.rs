@@ -25,6 +25,13 @@ impl PyFrame {
 
 #[pymethods]
 impl PyFrame {
+    /// A free-standing frame, e.g. to sample timelines when a video is built.
+    #[new]
+    #[pyo3(signature = (index, global_index = None, fps = 30))]
+    fn py_new(index: usize, global_index: Option<usize>, fps: usize) -> Self {
+        Self::new(Frame::new(index, global_index.unwrap_or(index), fps))
+    }
+
     /// The frame index in the current scene (in the video outside scenes).
     #[getter]
     fn index(&self) -> usize {
@@ -273,6 +280,13 @@ impl PyFrame {
                 .play_lottie(ctx.get()?, file, options)
                 .as_subtree(),
         })
+    }
+
+    /// This frame with scene index `index`; its time and shader clock follow the index.
+    fn with_index(&self, index: usize) -> Self {
+        let mut inner = self.inner.clone();
+        inner.index = index;
+        Self::new(inner)
     }
 
     /// This frame with the index of the whole video.

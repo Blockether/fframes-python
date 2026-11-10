@@ -150,3 +150,21 @@ args = ["--song", "revenge.mp3"]
 renderer = "cpu"
 max_diff = 0
 video_exact = false
+
+[shader-mode]
+script = "examples/shader_mode.py"
+rust_bin = "shader-mode"
+example_dir = "shader-mode"
+at = "0f,3f,10f,20f,40f,60f,80f,85f,93f,100f,107f,115f,122f,200f,300f,400f,500f,600f,700f,800f,900f,931f"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[made-of-motion]
+script = "examples/made_of_motion.py"
+rust_bin = "made-of-motion"
+example_dir = "made-of-motion"
+at = "0f,20f,47f,60f,90f,100f,150f,155f,170f,199f,205f,225f,245f,260f,275f,295f,310f,330f,350f,381f,400f,450f,488f"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
