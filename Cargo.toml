@@ -25,7 +25,7 @@ fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "
 
 # FFmpeg codecs, portable so cached source builds work across CPUs.
 [target.'cfg(not(windows))'.dependencies]
-fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["h264", "h265", "vpx", "libav-agree-gpl", "build-portable"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["h264", "h265", "vpx", "opus", "libav-agree-gpl", "build-portable"] }
 
 [profile.release]
 codegen-units = 16

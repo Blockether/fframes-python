@@ -1,6 +1,7 @@
 //! Python bindings for fframes.
 
 mod animation;
+mod cli_options;
 mod frame;
 mod media;
 mod media_api;

@@ -347,4 +347,12 @@ def cli(
     codec_params: dict[str, str] | None = None,
     tmp_dir: str | None = None,
     default_output: str | None = None,
+    video_options: dict[str, Any] | None = None,
+    audio_options: dict[str, Any] | None = None,
+    cache_capacity: int | None = None,
+    concurrency: int | None = None,
+    text_cache_capacity: int | None = None,
+    renderer: Literal["cpu", "skia-cpu", "gpu"] | None = None,
+    gpu_contexts: int | None = None,
+    buffer_queue_size: int | None = None,
 ) -> int: ...
