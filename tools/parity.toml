@@ -168,3 +168,12 @@ at = "0s,0.375s,0.917s,2.083s,4.167s,6.417s,7.917s,9.375s,11.833s,13s,13.958s,16
 args = []
 renderer = "skia-cpu"
 max_diff = 0
+
+[fframes-intro]
+script = "examples/fframes_intro.py"
+rust_bin = "fframes-intro"
+example_dir = "fframes-intro"
+at = "1s,8s,20s,26s,29s,31.5s,33.5s,37s,42s,55s,70s,90s,100s,106.5s,110s,121s,127.4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0

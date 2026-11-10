@@ -33,7 +33,7 @@ def beat_time(beat):
 
 
 def beat_frame(beat) -> int:
-    return int(math.floor(float(beat_time(beat) * F(FPS)) + 0.5))
+    return math.floor(float(beat_time(beat) * F(FPS)) + 0.5)
 
 
 def gsec(frame):
@@ -46,7 +46,7 @@ def gbeat(frame):
 
 def span_frames(start, end) -> int:
     a = 0 if start is None else beat_frame(start)
-    b = int(math.floor(float(TOTAL_SECONDS * F(FPS)) + 0.5)) if end is None else beat_frame(end)
+    b = math.floor(float(TOTAL_SECONDS * F(FPS)) + 0.5) if end is None else beat_frame(end)
     return b - a
 
 
@@ -219,9 +219,7 @@ def corners(x, y, w, h, arm, color, width):
     x1, x2, x3 = x + arm, x + w - arm, x + w
     y1, y2, y3 = y + arm, y + h - arm, y + h
     x, y, x1, x2, x3, y1, y2, y3 = map(s32, (x, y, x1, x2, x3, y1, y2, y3))
-    d = (
-        f"M{x} {y1} V{y} H{x1} M{x2} {y} H{x3} V{y1} M{x3} {y2} V{y3} H{x2} M{x1} {y3} H{x} V{y2}"
-    )
+    d = f"M{x} {y1} V{y} H{x1} M{x2} {y} H{x3} V{y1} M{x3} {y2} V{y3} H{x2} M{x1} {y3} H{x} V{y2}"
     return CORNERS(d=d, color=color, width=float(F(width)))
 
 
@@ -299,7 +297,15 @@ def letters(frame, ctx, x, y, value, family, size, weight, fill, tracking, f):
             f"translate({s32(-cw / F(2.0))} 0)"
         )
         out.append(
-            LETTER(t=t, family=family, weight=weight, size=size, fill=fill, opacity=float(o), ch=text(c))
+            LETTER(
+                t=t,
+                family=family,
+                weight=weight,
+                size=size,
+                fill=fill,
+                opacity=float(o),
+                ch=text(c),
+            )
         )
     return GROUP(content=out)
 
