@@ -4,18 +4,21 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::Parser;
+use fframes::RenderOptions;
 use fframes::cli::{Cli, NoArgs};
-use fframes::{EncoderOptions, RenderOptions};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+use crate::cli_options::{self, EncoderSpec};
 use crate::media::PyMedia;
-use crate::render_options;
 use crate::video::PyVideo;
 
 /// The libx264 settings of the fframes examples.
-const DEFAULT_CODEC_PARAMS: [(&str, &str); 3] =
-    [("crf", "23"), ("preset", "ultrafast"), ("tune", "animation")];
+const DEFAULT_CODEC_PARAMS: [(&str, &str); 3] = [
+    ("crf", "23"),
+    ("preset", "ultrafast"),
+    ("tune", "animation"),
+];
 
 /// Moves a value that is not `Send` into `Python::detach`. The value is used only by the
 /// thread that runs the closure while the caller waits.
@@ -24,21 +27,17 @@ struct AssertSend<T>(T);
 // `Python::attach`.
 unsafe impl<T> Send for AssertSend<T> {}
 
-fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(String, String)>>> {
-    let Some(params) = params else {
-        return Ok(None);
-    };
-    params
-        .iter()
-        .map(|(key, value)| Ok((key.str()?.to_string(), value.str()?.to_string())))
-        .collect::<PyResult<Vec<_>>>()
-        .map(Some)
-}
-
 /// Runs the fframes command line for `video` and returns its exit code.
 ///
 /// `argv` defaults to `sys.argv`. The encoder settings apply to `render`; the defaults are
 /// the ones of the fframes examples (libx264, crf 23, preset ultrafast, tune animation).
+/// `video_options` and `audio_options` set the other `EncoderOptions` fields (pixel_format,
+/// sample_format, color_matrix, bitrate, qmin, qmax, qcompress, max_qdiff, gop_size,
+/// sample_rate; `audio_options` also encoder and codec_params). `cache_capacity`,
+/// `concurrency` and `text_cache_capacity` configure the CPU backend; `renderer` is what
+/// renders without `--renderer`, on `gpu_contexts` GPU contexts ("max" or an int).
+/// `master_gain_db`, `limiter` (None/True: default, False: off, or a dict with ceiling_db,
+/// lookahead_ms, release_ms) and `declick` set the audio master bus.
 #[pyfunction]
 #[pyo3(signature = (
     video,
@@ -51,12 +50,17 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     codec_params = None,
     tmp_dir = None,
     default_output = None,
+    video_options = None,
+    audio_options = None,
+    cache_capacity = None,
+    concurrency = None,
+    text_cache_capacity = None,
     renderer = None,
     gpu_contexts = None,
     buffer_queue_size = None,
     master_gain_db = 0.0,
     limiter = None,
-    rate_control = None,
+    declick = true,
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -70,12 +74,17 @@ pub fn cli(
     codec_params: Option<&Bound<'_, PyDict>>,
     tmp_dir: Option<PathBuf>,
     default_output: Option<PathBuf>,
-    renderer: Option<String>,
+    video_options: Option<&Bound<'_, PyDict>>,
+    audio_options: Option<&Bound<'_, PyDict>>,
+    cache_capacity: Option<usize>,
+    concurrency: Option<usize>,
+    text_cache_capacity: Option<usize>,
+    renderer: Option<&str>,
     gpu_contexts: Option<&Bound<'_, PyAny>>,
     buffer_queue_size: Option<usize>,
     master_gain_db: f32,
     limiter: Option<&Bound<'_, PyAny>>,
-    rate_control: Option<&Bound<'_, PyDict>>,
+    declick: bool,
 ) -> PyResult<i32> {
     let argv = match argv {
         Some(argv) => argv,
@@ -91,35 +100,46 @@ pub fn cli(
         }
     };
     let video = PyVideo::from_py(video)?;
-    let params = self::codec_params(codec_params)?;
+    let params = codec_params
+        .map(|p| cli_options::string_pairs(p.as_any()))
+        .transpose()?;
     let params: Vec<(&str, &str)> = match &params {
-        Some(params) => params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect(),
+        Some(params) => params
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect(),
         None if encoder.as_deref() == Some("libx264") => DEFAULT_CODEC_PARAMS.to_vec(),
         None => Vec::new(),
     };
-    let renderers =
-        render_options::renderers(renderer.as_deref(), gpu_contexts, buffer_queue_size)?;
-    let audio_mix = render_options::audio_mix(master_gain_db, limiter)?;
-    let tmp_dir = tmp_dir.unwrap_or_else(|| std::env::temp_dir().join("fframes-python"));
-    let mut options = RenderOptions {
+    let video_spec = EncoderSpec::from_py(video_options)?;
+    let audio_spec = EncoderSpec::from_py(audio_options)?;
+    let audio_params: Vec<(&str, &str)> = audio_spec
+        .params
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+    let renderers = cli_options::skia(renderer, gpu_contexts, buffer_queue_size)?;
+    let options = RenderOptions {
         media: media
             .as_deref()
             .map(|media| media.provider() as &dyn fframes::MediaProvider<'_>),
         load_system_fonts,
         default_font: &default_font,
-        tmp_files_directory: Some(&tmp_dir),
+        // Without a directory fframes makes a new one per render, so renders can run at once.
+        tmp_files_directory: tmp_dir.as_ref(),
         abort_signal: Some(&video.failure.abort),
-        video_encoder_options: EncoderOptions {
-            preferred_encoder: encoder.as_deref(),
-            codec_params: (!params.is_empty()).then_some(params.as_slice()),
-            ..Default::default()
-        },
-        audio_mix,
+        video_encoder_options: video_spec.options(encoder.as_deref(), &params),
+        audio_encoder_options: audio_spec.options(audio_spec.encoder.as_deref(), &audio_params),
+        audio_mix: cli_options::audio_mix(master_gain_db, limiter, declick)?,
         ..Default::default()
     };
-    render_options::rate_control(&mut options.video_encoder_options, rate_control)?;
     let mut runner = fframes::cli::new(&video, options)
         .args(args)
+        .backend(cli_options::backend(
+            cache_capacity,
+            concurrency,
+            text_cache_capacity,
+        ))
         .renderers(renderers);
     if let Some(output) = default_output {
         runner = runner.default_output(output);

@@ -34,7 +34,9 @@ pub fn font_style(name: &str) -> PyResult<FontStyle> {
         "normal" => Ok(FontStyle::Normal),
         "italic" => Ok(FontStyle::Italic),
         "oblique" => Ok(FontStyle::Oblique),
-        _ => Err(PyValueError::new_err(format!("unknown font style {name:?}"))),
+        _ => Err(PyValueError::new_err(format!(
+            "unknown font style {name:?}"
+        ))),
     }
 }
 
@@ -49,7 +51,11 @@ pub fn font_stretch(name: &str) -> PyResult<FontStretch> {
         "expanded" => FontStretch::Expanded,
         "extra-expanded" => FontStretch::ExtraExpanded,
         "ultra-expanded" => FontStretch::UltraExpanded,
-        _ => return Err(PyValueError::new_err(format!("unknown font stretch {name:?}"))),
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unknown font stretch {name:?}"
+            )));
+        }
     })
 }
 
@@ -63,7 +69,13 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(family: String, size: usize, weight: u16, style: &str, stretch: &str) -> PyResult<Self> {
+    pub fn new(
+        family: String,
+        size: usize,
+        weight: u16,
+        style: &str,
+        stretch: &str,
+    ) -> PyResult<Self> {
         Ok(Self {
             family,
             size,
@@ -107,7 +119,9 @@ pub fn align(name: &str) -> PyResult<TextAlign> {
         "left" => Ok(TextAlign::Left),
         "center" => Ok(TextAlign::Center),
         "right" => Ok(TextAlign::Right),
-        _ => Err(PyValueError::new_err(format!("unknown text align {name:?}"))),
+        _ => Err(PyValueError::new_err(format!(
+            "unknown text align {name:?}"
+        ))),
     }
 }
 
@@ -222,37 +236,59 @@ pub struct PyVideoFrame {
     pub stream_duration: f32,
 }
 
-/// Reads a synced frame into a `VideoFrame`, resized when `width` or `height` is given.
-pub fn video_frame<'m>(
-    py: Python<'_>,
-    frame: &impl fframes::FFramesSyncedVideoFrame<'m>,
-    width: Option<u32>,
-    height: Option<u32>,
-) -> PyResult<Option<PyVideoFrame>> {
-    let image = match resize_to(width, height, (frame.width(), frame.height())) {
-        Some((width, height)) => {
-            match frame.into_resized_image(&fframes::media::FrameConvertOptions {
+/// A decoded video frame, before it becomes a Python `VideoFrame`.
+pub struct DecodedFrame {
+    image: Arc<fframes::usvgr::PreloadedImageData>,
+    width: u32,
+    height: u32,
+    timestamp_seconds: f32,
+    stream_fps: f32,
+    stream_duration: f32,
+}
+
+impl DecodedFrame {
+    /// Converts a synced frame, resized when `width` or `height` is given. It does not need
+    /// the GIL, so callers run it in `Python::detach`.
+    pub fn new<'m>(
+        frame: &impl fframes::FFramesSyncedVideoFrame<'m>,
+        width: Option<u32>,
+        height: Option<u32>,
+    ) -> Option<Self> {
+        let image = match resize_to(width, height, (frame.width(), frame.height())) {
+            Some((width, height)) => frame.into_resized_image(&fframes::media::FrameConvertOptions {
                 resize: fframes::media::ResizeVideoFrame { width, height },
-            }) {
-                Some(image) => image,
-                None => return Ok(None),
-            }
-        }
-        None => frame.into_image(),
-    };
-    Ok(Some(PyVideoFrame {
-        image: Py::new(py, PyImage { data: image.image })?,
-        width: frame.width(),
-        height: frame.height(),
-        timestamp_seconds: frame.timestamp_seconds(),
-        stream_fps: frame.stream_fps(),
-        stream_duration: frame.stream_duration_in_seconds(),
-    }))
+            })?,
+            None => frame.into_image(),
+        };
+        Some(Self {
+            image: image.image,
+            width: frame.width(),
+            height: frame.height(),
+            timestamp_seconds: frame.timestamp_seconds(),
+            stream_fps: frame.stream_fps(),
+            stream_duration: frame.stream_duration_in_seconds(),
+        })
+    }
+
+    pub fn into_py(self, py: Python<'_>) -> PyResult<PyVideoFrame> {
+        Ok(PyVideoFrame {
+            image: Py::new(py, PyImage { data: self.image })?,
+            width: self.width,
+            height: self.height,
+            timestamp_seconds: self.timestamp_seconds,
+            stream_fps: self.stream_fps,
+            stream_duration: self.stream_duration,
+        })
+    }
 }
 
 /// The output size for `width`/`height` keywords, keeping the aspect of `frame` when only
 /// one is given.
-pub fn resize_to(width: Option<u32>, height: Option<u32>, source: (u32, u32)) -> Option<(u32, u32)> {
+pub fn resize_to(
+    width: Option<u32>,
+    height: Option<u32>,
+    source: (u32, u32),
+) -> Option<(u32, u32)> {
     let (sw, sh) = (source.0.max(1) as f64, source.1.max(1) as f64);
     match (width, height) {
         (None, None) => None,
@@ -312,19 +348,31 @@ impl PyClip {
 
     /// Starts the clip at `seconds` of the timeline.
     fn at(&self, seconds: f32) -> Self {
-        Self { at: seconds, ..self.clone() }
+        Self {
+            at: seconds,
+            ..self.clone()
+        }
     }
 
     fn speed(&self, speed: f32) -> Self {
-        Self { speed, ..self.clone() }
+        Self {
+            speed,
+            ..self.clone()
+        }
     }
 
     fn reverse(&self) -> Self {
-        Self { reverse: true, ..self.clone() }
+        Self {
+            reverse: true,
+            ..self.clone()
+        }
     }
 
     fn looping(&self) -> Self {
-        Self { looping: true, ..self.clone() }
+        Self {
+            looping: true,
+            ..self.clone()
+        }
     }
 
     /// Seconds that the clip lasts on the timeline.

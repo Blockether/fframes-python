@@ -27,7 +27,10 @@ pub struct Failure {
 
 impl Failure {
     pub fn record(&self, error: PyErr) {
-        let mut slot = self.error.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut slot = self
+            .error
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if slot.is_none() {
             *slot = Some(error);
         }
@@ -52,9 +55,7 @@ fn read<'py>(obj: &Bound<'py, PyAny>, name: &str) -> PyResult<Option<Bound<'py, 
     match obj.getattr(name) {
         Ok(value) if value.is_callable() => value.call0().map(Some),
         Ok(value) => Ok(Some(value)),
-        Err(err) if err.is_instance_of::<pyo3::exceptions::PyAttributeError>(obj.py()) => {
-            Ok(None)
-        }
+        Err(err) if err.is_instance_of::<pyo3::exceptions::PyAttributeError>(obj.py()) => Ok(None),
         Err(err) => Err(err),
     }
 }
@@ -97,10 +98,36 @@ fn call_render<'a>(
             svgr_from_any(&out?)
         })();
         result.unwrap_or_else(|error| {
+            clear_traceback_locals(py, &error);
             failure.record(error);
             Svgr::default()
         })
     })
+}
+
+/// Clears the locals of the frames in the tracebacks of `error` and its context chain. The error
+/// is raised on the calling thread, and the locals hold this thread's unsendable `Frame` and
+/// `Context`, which must be dropped here.
+fn clear_traceback_locals(py: Python<'_>, error: &PyErr) {
+    let Ok(clear_frames) = py
+        .import(intern!(py, "traceback"))
+        .and_then(|m| m.getattr(intern!(py, "clear_frames")))
+    else {
+        return;
+    };
+    let mut value = Some(error.value(py).clone().into_any());
+    for _ in 0..32 {
+        let Some(current) = value.take() else { break };
+        if let Ok(traceback) = current.getattr(intern!(py, "__traceback__"))
+            && !traceback.is_none()
+        {
+            let _ = clear_frames.call1((traceback,));
+        }
+        value = current
+            .getattr(intern!(py, "__context__"))
+            .ok()
+            .filter(|next| !next.is_none());
+    }
 }
 
 pub struct PyScene {

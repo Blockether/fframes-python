@@ -1,16 +1,23 @@
 //! Python bindings for fframes.
 
 mod animation;
+mod captions;
+mod cli_options;
+mod exif;
 mod frame;
 mod gil;
+mod lottie;
 mod media;
 mod media_api;
 mod render;
-mod render_options;
+mod rng;
+mod runtime;
 mod svgr;
+mod synth;
 mod timing;
 mod values;
 mod video;
+mod waves;
 
 use pyo3::prelude::*;
 
@@ -38,7 +45,19 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<media_api::PyVideoFrame>()?;
     m.add_class::<media_api::PyClip>()?;
     m.add_class::<media_api::PyShader>()?;
-    m.add_function(wrap_pyfunction!(media_api::center_spectrum_low_frequencies, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        media_api::center_spectrum_low_frequencies,
+        m
+    )?)?;
+    m.add_class::<runtime::PyAnimationRuntime>()?;
+    m.add_class::<captions::PyCaptions>()?;
+    m.add_class::<captions::PyCaptionWord>()?;
+    m.add_function(wrap_pyfunction!(lottie::lottie_frame, m)?)?;
+    m.add_class::<synth::PyNoise>()?;
+    m.add_function(wrap_pyfunction!(synth::biquad, m)?)?;
+    m.add_class::<rng::PyRng>()?;
+    m.add_function(wrap_pyfunction!(exif::exif, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
+    m.add_function(wrap_pyfunction!(waves::wave_path, m)?)?;
     Ok(())
 }

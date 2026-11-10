@@ -1,6 +1,6 @@
 """Type stubs for the native fframes module."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, ClassVar, Literal, Protocol, TypeAlias
 
 ColorLike: TypeAlias = Color | str
@@ -328,6 +328,72 @@ class Shader:
     def draw(self, frame: Frame, uniforms: dict[str, Uniform] | None = None) -> Svgr: ...
 
 def center_spectrum_low_frequencies(spectrum: Sequence[float]) -> list[float]: ...
+def wave_path(
+    levels: Sequence[float],
+    x_step: int,
+    y_scale: float,
+    *,
+    max_height: float = 600.0,
+    baseline: float = 1080.0,
+) -> str: ...
+
+class AnimationRuntime:
+    duration: float
+    def __init__(self, duration: float, easing: Easing | str | None = None) -> None: ...
+    def animate(self, frame: Frame, on_second: float, from_: Animatable, to: Animatable) -> Any: ...
+
+class CaptionWord:
+    text: str
+    metadata: dict[str, Any]
+    cue_metadata: dict[str, Any]
+    width: float
+    height: float
+    rect: tuple[float, float, float, float]
+    state: Literal["upcoming", "active", "spoken"]
+    is_active: bool
+    progress: float
+    elapsed: float | None
+    time: float
+    start: float | None
+    end: float | None
+    cue_index: int
+    token_index: int
+    word_index: int | None
+    def id(self, key: str) -> str: ...
+    def clip(self, content: Svgr) -> Svgr: ...
+    def mask_text(self, content: Svgr) -> Svgr: ...
+
+class Captions:
+    def __init__(self, media: str, x: float, y: float, width: float, height: float) -> None: ...
+    def font(self, family: str, size: int) -> Captions: ...
+    def font_weight(self, weight: int) -> Captions: ...
+    def bounds(self, x: float, y: float, width: float, height: float) -> Captions: ...
+    def line_height(self, multiplier: float) -> Captions: ...
+    def mode(self, mode: Literal["highlight", "word", "reveal", "karaoke"]) -> Captions: ...
+    def clock(self, clock: Literal["scene", "global"]) -> Captions: ...
+    def active_fill(self, fill: str) -> Captions: ...
+    def upcoming_fill(self, fill: str) -> Captions: ...
+    def spoken_fill(self, fill: str) -> Captions: ...
+    def outline(self, fill: str, width: float) -> Captions: ...
+    def active_background(self, fill: str, padding: float) -> Captions: ...
+    def underline(self, fill: str, width: float) -> Captions: ...
+    def render(self, frame: Frame, ctx: Context, *, at: float | None = None) -> Svgr: ...
+    def render_with(
+        self,
+        frame: Frame,
+        ctx: Context,
+        draw: Callable[[CaptionWord, Svgr], Svgr | None],
+        *,
+        at: float | None = None,
+    ) -> Svgr: ...
+    def highlight_with(
+        self,
+        frame: Frame,
+        ctx: Context,
+        draw: Callable[[CaptionWord, Svgr], Svgr | None],
+        *,
+        at: float | None = None,
+    ) -> Svgr: ...
 
 class Media:
     images: list[str]
@@ -336,7 +402,54 @@ class Media:
     subtitles: list[str]
     lottie: list[str]
     fonts: list[str]
-    def __init__(self, *folders: str) -> None: ...
+    def __init__(
+        self,
+        *folders: str,
+        mono: bool | list[bool] = False,
+        audio: dict[str, Samples | tuple[Samples, Samples]] | None = None,
+        sample_rate: int = 48000,
+    ) -> None:
+        """`mono=True` mixes audio down to mono, like Rust `include_media_dir!`; a list sets it per folder.
+
+        `audio` adds generated audio: mono samples or a `(left, right)` pair.
+        """
+
+Samples: TypeAlias = bytes | Sequence[float]
+"""Little-endian f32 bytes (`array.astype('<f4').tobytes()`) or numbers."""
+
+class Rng:
+    """`rand` 0.8 `StdRng::seed_from_u64(seed)`: the same draws as a seeded Rust example."""
+    def __init__(self, seed: int) -> None: ...
+    def range(
+        self,
+        lo: float,
+        hi: float,
+        kind: Literal["f32", "f64", "i32", "u32", "i64", "u64", "usize"] = "f64",
+        inclusive: bool = False,
+    ) -> Any: ...
+    def bool(self, p: float) -> bool: ...
+    def shuffle(self, items: Sequence[Any]) -> list[Any]: ...
+    def choose(self, items: Sequence[Any]) -> Any | None: ...
+
+def exif(ctx: Context, image: str, tag_name: str) -> str | None:
+    """The display value of EXIF field `tag_name` of media image `image`, or `None`."""
+
+def lottie_frame(ctx: Context, file: str, seconds: float) -> Svgr:
+    """The Lottie `file` at `seconds`, in its own units; empty if missing."""
+
+class Noise:
+    """White noise in -1..1 from a xorshift32 state."""
+    def __init__(self, seed: int) -> None: ...
+    def take(self, n: int) -> bytes: ...
+
+def biquad(
+    kind: Literal["low", "high", "band"],
+    samples: Samples,
+    freq: float | Samples,
+    q: float,
+    sample_rate: float = 48000.0,
+) -> bytes:
+    """`samples` through an RBJ biquad; `freq` is one cutoff or one per sample."""
 
 def cli(
     video: Any,
@@ -349,4 +462,15 @@ def cli(
     codec_params: dict[str, str] | None = None,
     tmp_dir: str | None = None,
     default_output: str | None = None,
+    video_options: dict[str, Any] | None = None,
+    audio_options: dict[str, Any] | None = None,
+    cache_capacity: int | None = None,
+    concurrency: int | None = None,
+    text_cache_capacity: int | None = None,
+    renderer: Literal["cpu", "skia-cpu", "gpu"] | None = None,
+    gpu_contexts: int | Literal["max"] | None = None,
+    buffer_queue_size: int | None = None,
+    master_gain_db: float = 0.0,
+    limiter: bool | dict[str, float] | None = None,
+    declick: bool = True,
 ) -> int: ...

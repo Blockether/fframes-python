@@ -179,7 +179,7 @@ def main() -> int:
         media=_media.media("teej-podcast", "dynamic_media"),
         encoder="hevc_videotoolbox" if macos else "libx265",
         codec_params={"crf": "23", "preset": "slow", "bframes": "3"},
-        rate_control={"qmin": 0, "qmax": 69, "qcompress": 0.6, "max_qdiff": 4, "gop_size": 24},
+        video_options={"qmin": 0, "qmax": 69, "qcompress": 0.6, "max_qdiff": 4, "gop_size": 24},
         renderer="gpu",
         gpu_contexts="max",
         buffer_queue_size=20,

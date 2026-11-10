@@ -1,10 +1,10 @@
 //! `Easing` and `timeline(...)`: keyframe animations evaluated by `frame.animate(timeline)`.
 
 use fframes::animation::{Easing, KeyFrame, KeyFramesAnimation};
+use pyo3::IntoPyObjectExt;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyFloat, PyInt, PyString, PyTuple};
-use pyo3::IntoPyObjectExt;
 
 use crate::values::{PyColor, PyTransform, color_from_any};
 
@@ -151,7 +151,12 @@ impl Animation {
     }
 
     /// The value of the animation for `frame` (`looped` repeats it).
-    pub fn eval(&self, py: Python<'_>, frame: &fframes::Frame, looped: bool) -> PyResult<Py<PyAny>> {
+    pub fn eval(
+        &self,
+        py: Python<'_>,
+        frame: &fframes::Frame,
+        looped: bool,
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! run {
             ($a:expr) => {
                 if looped {
@@ -235,13 +240,15 @@ fn raw_key<'py>(item: &Bound<'py, PyAny>) -> PyResult<RawKey<'py>> {
 #[pyfunction]
 #[pyo3(signature = (*keyframes))]
 pub fn timeline(keyframes: &Bound<'_, PyTuple>) -> PyResult<PyTimeline> {
-    let items: Vec<Bound<'_, PyAny>> = if keyframes.len() == 1
-        && !keyframes.get_item(0)?.is_instance_of::<PyTuple>()
-    {
-        keyframes.get_item(0)?.try_iter()?.collect::<PyResult<_>>()?
-    } else {
-        keyframes.iter().collect()
-    };
+    let items: Vec<Bound<'_, PyAny>> =
+        if keyframes.len() == 1 && !keyframes.get_item(0)?.is_instance_of::<PyTuple>() {
+            keyframes
+                .get_item(0)?
+                .try_iter()?
+                .collect::<PyResult<_>>()?
+        } else {
+            keyframes.iter().collect()
+        };
     let keys = items.iter().map(raw_key).collect::<PyResult<Vec<_>>>()?;
     Ok(PyTimeline {
         animation: Animation::from_keys(&keys)?,

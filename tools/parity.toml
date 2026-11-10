@@ -1,0 +1,152 @@
+# Each ported example and how to compare it with the Rust reference of ~/fframes.
+# tools/parity.py renders the frames `at` with both and compares the pixels.
+
+[hello-world]
+script = "examples/hello_world.py"
+rust_bin = "hello_world_example_bin"
+example_dir = "hello-world"
+at = "0s,1s,5.5s,12s,29s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[captions]
+script = "examples/captions.py"
+rust_bin = "captions-example"
+example_dir = "captions"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[signal-lab]
+script = "examples/signal_lab.py"
+rust_bin = "signal-lab"
+example_dir = "signal-lab"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[marketing]
+script = "examples/marketing/main.py"
+rust_bin = "marketing-example"
+example_dir = "marketing"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+video_exact = false
+
+[tiktok]
+script = "examples/tiktok.py"
+rust_bin = "tiktok_example_bin"
+example_dir = "tiktok"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[podcast]
+script = "examples/podcast.py"
+rust_bin = "podcast_example_bin"
+example_dir = "podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[audio-announce]
+script = "examples/audio_announce.py"
+rust_bin = "audio_announce_example_bin"
+example_dir = "audio-announce"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[neon-triangle]
+script = "examples/neon_triangle.py"
+rust_bin = "neon_triangle_example_bin"
+example_dir = "neon-triangle"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[shaders]
+script = "examples/shaders.py"
+rust_bin = "shaders_example_bin"
+example_dir = "shaders"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[anamorphic-video]
+script = "examples/anamorphic_video.py"
+rust_bin = "anamorphic-video"
+example_dir = "anamorphic-video"
+at = "0s,0.4s,0.9s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[teej-podcast]
+script = "examples/teej_podcast.py"
+rust_bin = "teej_podcast_example_bin"
+example_dir = "teej-podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+video_exact = false
+
+[conference-splash-screen]
+script = "examples/conference_splash_screen.py"
+rust_bin = "conference_splash_screen_bin"
+example_dir = "conference-splash-screen"
+at = "0s,1s,2.1s,3.5s,3.8s,4.5s,5s,5.5s,6s,7.6s"
+args = []
+renderer = "cpu"
+max_diff = 0
+video_exact = false
+
+[low-poly-art]
+script = "examples/low_poly_art/main.py"
+rust_bin = "low_poly_art_example_bin"
+example_dir = "low-poly-art"
+at = "0s,0.5s,1s,2.7s,5s,7.33s,9.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+# RenderingScene (6.33s..8.67s) draws an FPS counter from rand::random(), so two Rust renders
+# differ there too. These timestamps cover every other scene and each embedded preview.
+[beta]
+script = "examples/beta/main.py"
+rust_bin = "beta_example_bin"
+example_dir = "beta"
+at = "1s,2s,4.5s,10s,13s,15s,16.5s,18s,22.5s,24.5s,26.5s,29s,31s,31.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[lottie]
+script = "examples/lottie/main.py"
+rust_bin = "lottie"
+example_dir = "lottie"
+at = "0s,2s,5.5s,9s,13s,17.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
+# Rust picks the default song from HashMap key order, so the song is given.
+[pixel-memory]
+script = "examples/pixel_memory/main.py"
+rust_bin = "pixel_memory_example_bin"
+example_dir = "pixel-memory"
+at = "0.5s,10s,40s,80s,131.9s"
+args = ["--song", "revenge.mp3"]
+renderer = "cpu"
+max_diff = 0
+video_exact = false
