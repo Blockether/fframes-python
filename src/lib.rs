@@ -56,6 +56,8 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lottie::lottie_frame, m)?)?;
     m.add_class::<synth::PyNoise>()?;
     m.add_function(wrap_pyfunction!(synth::biquad, m)?)?;
+    m.add_function(wrap_pyfunction!(synth::saw, m)?)?;
+    m.add_function(wrap_pyfunction!(synth::f32_math, m)?)?;
     m.add_class::<rng::PyRng>()?;
     m.add_function(wrap_pyfunction!(exif::exif, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
