@@ -7,7 +7,6 @@ import argparse
 import sys
 
 import _media
-
 import fframes as ff
 from fframes import Color, Transform
 

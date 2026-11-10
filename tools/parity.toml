@@ -9,3 +9,30 @@ at = "0s,1s,5.5s,12s,29s"
 args = []
 renderer = "cpu"
 max_diff = 0
+
+[captions]
+script = "examples/captions.py"
+rust_bin = "captions-example"
+example_dir = "captions"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[signal-lab]
+script = "examples/signal_lab.py"
+rust_bin = "signal-lab"
+example_dir = "signal-lab"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[marketing]
+script = "examples/marketing/main.py"
+rust_bin = "marketing-example"
+example_dir = "marketing"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0

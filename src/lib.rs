@@ -1,11 +1,13 @@
 //! Python bindings for fframes.
 
 mod animation;
+mod captions;
 mod cli_options;
 mod frame;
 mod media;
 mod media_api;
 mod render;
+mod runtime;
 mod svgr;
 mod timing;
 mod values;
@@ -41,6 +43,9 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
         media_api::center_spectrum_low_frequencies,
         m
     )?)?;
+    m.add_class::<runtime::PyAnimationRuntime>()?;
+    m.add_class::<captions::PyCaptions>()?;
+    m.add_class::<captions::PyCaptionWord>()?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
     Ok(())
 }
