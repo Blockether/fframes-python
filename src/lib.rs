@@ -10,6 +10,7 @@ mod svgr;
 mod timing;
 mod values;
 mod video;
+mod waves;
 
 use pyo3::prelude::*;
 
@@ -39,5 +40,6 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<media_api::PyShader>()?;
     m.add_function(wrap_pyfunction!(media_api::center_spectrum_low_frequencies, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
+    m.add_function(wrap_pyfunction!(waves::wave_path, m)?)?;
     Ok(())
 }
