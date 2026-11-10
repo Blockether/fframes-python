@@ -863,11 +863,22 @@ fn parse_children(node: &roxmltree::Node<'_, '_>) -> PyResult<Vec<TChild>> {
 }
 
 /// Collapses the indentation of the markup: a run of whitespace with a line break becomes one
-/// space, the first text of an element loses its leading space, the last its trailing space, and
-/// pure indentation disappears. Other runs stay as they are, like the text literals of `svgr!`.
-fn normalize_text(text: &str, is_first: bool, is_last: bool) -> Option<String> {
+/// space, the first text of an element loses its leading indentation, the last its trailing
+/// indentation, and pure indentation disappears. With `trim_spaces` (a `<text>`), the edges also
+/// lose plain spaces; a `<tspan>` keeps them, as in `<tspan>Warsaw </tspan><tspan>2025</tspan>`.
+/// Other runs stay as they are, like the text literals of `svgr!`.
+fn normalize_text(text: &str, is_first: bool, is_last: bool, trim_spaces: bool) -> Option<String> {
     if text.trim().is_empty() && text.contains('\n') {
         return None;
+    }
+    let mut text = text;
+    let start = text.trim_start();
+    if is_first && (trim_spaces || text[..text.len() - start.len()].contains('\n')) {
+        text = start;
+    }
+    let end = text.trim_end();
+    if is_last && (trim_spaces || text[end.len()..].contains('\n')) {
+        text = end;
     }
     let mut out = String::with_capacity(text.len());
     let mut run = String::new();
@@ -886,14 +897,7 @@ fn normalize_text(text: &str, is_first: bool, is_last: bool) -> Option<String> {
             out.push(c);
         }
     }
-    let mut out = out.as_str();
-    if is_first {
-        out = out.trim_start();
-    }
-    if is_last {
-        out = out.trim_end();
-    }
-    (!out.is_empty()).then(|| out.to_owned())
+    (!out.is_empty()).then_some(out)
 }
 
 /// Children of `text`, `tspan` and `textPath`: text, holes, `tspan` and `textPath`.
@@ -906,7 +910,7 @@ fn parse_text_children(node: &roxmltree::Node<'_, '_>, parent: EId) -> PyResult<
     for (index, child) in all.iter().enumerate() {
         if child.is_text() {
             let text = child.text().unwrap_or_default();
-            if let Some(text) = normalize_text(text, index == 0, index + 1 == all.len()) {
+            if let Some(text) = normalize_text(text, index == 0, index + 1 == all.len(), parent == EId::Text) {
                 children.push(TChild::Node(TNode {
                     kind: NestedNodeKind::Text(StringStorage::new_owned(text)),
                     attrs: Vec::new(),
