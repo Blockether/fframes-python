@@ -2,11 +2,13 @@
 
 mod animation;
 mod captions;
+mod exif;
 mod frame;
 mod lottie;
 mod media;
 mod media_api;
 mod render;
+mod rng;
 mod runtime;
 mod svgr;
 mod synth;
@@ -47,6 +49,8 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(lottie::lottie_frame, m)?)?;
     m.add_class::<synth::PyNoise>()?;
     m.add_function(wrap_pyfunction!(synth::biquad, m)?)?;
+    m.add_class::<rng::PyRng>()?;
+    m.add_function(wrap_pyfunction!(exif::exif, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
     Ok(())
 }

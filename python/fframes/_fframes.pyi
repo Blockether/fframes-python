@@ -404,8 +404,25 @@ class Media:
         `audio` adds generated audio: mono samples or a `(left, right)` pair.
         """
 
-Samples = bytes | Sequence[float]
+Samples: TypeAlias = bytes | Sequence[float]
 """Little-endian f32 bytes (`array.astype('<f4').tobytes()`) or numbers."""
+
+class Rng:
+    """`rand` 0.8 `StdRng::seed_from_u64(seed)`: the same draws as a seeded Rust example."""
+    def __init__(self, seed: int) -> None: ...
+    def range(
+        self,
+        lo: float,
+        hi: float,
+        kind: Literal["f32", "f64", "i32", "u32", "i64", "u64", "usize"] = "f64",
+        inclusive: bool = False,
+    ) -> Any: ...
+    def bool(self, p: float) -> bool: ...
+    def shuffle(self, items: Sequence[Any]) -> list[Any]: ...
+    def choose(self, items: Sequence[Any]) -> Any | None: ...
+
+def exif(ctx: Context, image: str, tag_name: str) -> str | None:
+    """The display value of EXIF field `tag_name` of media image `image`, or `None`."""
 
 def lottie_frame(ctx: Context, file: str, seconds: float) -> Svgr:
     """The Lottie `file` at `seconds`, in its own units; empty if missing."""
@@ -437,4 +454,7 @@ def cli(
     default_output: str | None = None,
     master_gain_db: float = 0.0,
     limiter: float | None = -1.0,
+    qmin: int = 15,
+    qmax: int = 60,
+    cache_capacity: int | None = None,
 ) -> int: ...

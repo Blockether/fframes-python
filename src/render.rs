@@ -40,6 +40,7 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
 /// `argv` defaults to `sys.argv`. The encoder settings apply to `render`; the defaults are
 /// the ones of the fframes examples (libx264, crf 23, preset ultrafast, tune animation).
 /// `master_gain_db` and `limiter` (the peak ceiling in dBFS, `None` for none) set the master bus.
+/// `cache_capacity` sets the static subtree cache of the default CPU backend.
 #[pyfunction]
 #[pyo3(signature = (
     video,
@@ -54,6 +55,9 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     default_output = None,
     master_gain_db = 0.0,
     limiter = Some(-1.0),
+    qmin = 15,
+    qmax = 60,
+    cache_capacity = None,
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -69,6 +73,9 @@ pub fn cli(
     default_output: Option<PathBuf>,
     master_gain_db: f32,
     limiter: Option<f32>,
+    qmin: i32,
+    qmax: i32,
+    cache_capacity: Option<usize>,
 ) -> PyResult<i32> {
     let argv = match argv {
         Some(argv) => argv,
@@ -102,6 +109,8 @@ pub fn cli(
         video_encoder_options: EncoderOptions {
             preferred_encoder: encoder.as_deref(),
             codec_params: (!params.is_empty()).then_some(params.as_slice()),
+            qmin,
+            qmax,
             ..Default::default()
         },
         audio_mix: fframes::AudioMixOptions {
@@ -117,6 +126,12 @@ pub fn cli(
     let mut runner = fframes::cli::new(&video, options)
         .args(args)
         .renderers(SkiaRenderers::default());
+    if let Some(cache_capacity) = cache_capacity {
+        runner = runner.backend(fframes::cpu::CpuRenderingBackend {
+            cache_capacity,
+            ..Default::default()
+        });
+    }
     if let Some(output) = default_output {
         runner = runner.default_output(output);
     }
