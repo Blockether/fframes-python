@@ -178,6 +178,7 @@ at = "0s,1s,2.5s,4s,5.5s,7s,7.95s"
 args = ["--cpu"]
 renderer = "cpu"
 max_diff = 0
+
 # The audio comes from the WAV files that arm-soundtrack writes to dynamic_media.
 [arm]
 script = "examples/arm/__main__.py"
@@ -186,4 +187,13 @@ example_dir = "arm"
 at = "0.5s,2s,5s,9s,14.6s,15.5s,16.3s,18.5s,24s,29s,34.8s,36.9s"
 args = ["--cpu"]
 renderer = "cpu"
+max_diff = 0
+
+[fframes-intro]
+script = "examples/fframes_intro.py"
+rust_bin = "fframes-intro"
+example_dir = "fframes-intro"
+at = "1s,8s,20s,26s,29s,31.5s,33.5s,37s,42s,55s,70s,90s,100s,106.5s,110s,121s,127.4s"
+args = []
+renderer = "skia-cpu"
 max_diff = 0
