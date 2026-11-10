@@ -100,14 +100,15 @@ pub fn cli(
     let audio_params: Vec<(&str, &str)> =
         audio_spec.params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
     let renderers = cli_options::skia(renderer, gpu_contexts, buffer_queue_size)?;
-    let tmp_dir = tmp_dir.unwrap_or_else(|| std::env::temp_dir().join("fframes-python"));
     let options = RenderOptions {
         media: media
             .as_deref()
             .map(|media| media.provider() as &dyn fframes::MediaProvider<'_>),
         load_system_fonts,
         default_font: &default_font,
-        tmp_files_directory: Some(&tmp_dir),
+        // Without `tmp_dir` each render gets its own directory, so renders that run at the
+        // same time do not overwrite each other's segments.
+        tmp_files_directory: tmp_dir.as_ref(),
         abort_signal: Some(&video.failure.abort),
         video_encoder_options: video_spec.options(encoder.as_deref(), &params),
         audio_encoder_options: audio_spec.options(audio_spec.encoder.as_deref(), &audio_params),
