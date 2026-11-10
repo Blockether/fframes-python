@@ -28,7 +28,6 @@ pub type Nodes = Vec<Option<NestedNodeData<'static>>>;
 const HOLE_START: char = '\u{E000}';
 const HOLE_END: char = '\u{E001}';
 const HOLE_TAG: &str = "ff-hole";
-const ROOT_TAG: &str = "ff-root";
 
 /// An SVG fragment: what `render_frame` returns and what goes into a hole.
 #[pyclass(name = "Svgr", module = "fframes", frozen)]
@@ -543,18 +542,18 @@ fn typed_value(
     if let Ok(float) = f32::from_str(&value) {
         return SvgAttributeValue::Float(float, StringStorage::new_owned(value));
     }
-    if accepts_color(aid) {
-        if let Ok(color) = svgrtypes::Color::from_str(&value) {
-            return SvgAttributeValue::Color(color);
-        }
+    if accepts_color(aid)
+        && let Ok(color) = svgrtypes::Color::from_str(&value)
+    {
+        return SvgAttributeValue::Color(color);
     }
     if let Ok(length) = svgrtypes::Length::from_str(&value) {
         return SvgAttributeValue::Length(length);
     }
-    if accepts_transform(aid) {
-        if let Ok(transform) = svgrtypes::Transform::from_str(&value) {
-            return SvgAttributeValue::Transform(transform);
-        }
+    if accepts_transform(aid)
+        && let Ok(transform) = svgrtypes::Transform::from_str(&value)
+    {
+        return SvgAttributeValue::Transform(transform);
     }
     SvgAttributeValue::StringStorage(StringStorage::new_owned(value))
 }
@@ -910,7 +909,12 @@ fn parse_text_children(node: &roxmltree::Node<'_, '_>, parent: EId) -> PyResult<
     for (index, child) in all.iter().enumerate() {
         if child.is_text() {
             let text = child.text().unwrap_or_default();
-            if let Some(text) = normalize_text(text, index == 0, index + 1 == all.len(), parent == EId::Text) {
+            if let Some(text) = normalize_text(
+                text,
+                index == 0,
+                index + 1 == all.len(),
+                parent == EId::Text,
+            ) {
                 children.push(TChild::Node(TNode {
                     kind: NestedNodeKind::Text(StringStorage::new_owned(text)),
                     attrs: Vec::new(),

@@ -202,31 +202,31 @@ impl PyVideo {
             _ => Color::BLACK,
         };
         let mut scenes = Vec::new();
-        if let Some(list) = read(obj, "scenes")? {
-            if !list.is_none() {
-                for scene in list.try_iter()? {
-                    let scene = scene?;
-                    let name = match read(&scene, "name")? {
-                        Some(name) if !name.is_none() => name.extract::<String>()?,
-                        _ => class_name(&scene)?,
-                    };
-                    let duration = match read(&scene, "duration")? {
-                        Some(duration) => duration_from_any(&duration)?,
-                        None => {
-                            return Err(PyTypeError::new_err(format!(
-                                "scene {name:?} must have a duration"
-                            )));
-                        }
-                    };
-                    scenes.push(PyScene {
-                        overlap: overlap_from_any(read(&scene, "overlap")?.as_ref())?,
-                        audio: audio_from_any(read(&scene, "audio")?.as_ref())?,
-                        obj: scene.unbind(),
-                        name: Box::leak(name.into_boxed_str()),
-                        duration,
-                        failure: failure.clone(),
-                    });
-                }
+        if let Some(list) = read(obj, "scenes")?
+            && !list.is_none()
+        {
+            for scene in list.try_iter()? {
+                let scene = scene?;
+                let name = match read(&scene, "name")? {
+                    Some(name) if !name.is_none() => name.extract::<String>()?,
+                    _ => class_name(&scene)?,
+                };
+                let duration = match read(&scene, "duration")? {
+                    Some(duration) => duration_from_any(&duration)?,
+                    None => {
+                        return Err(PyTypeError::new_err(format!(
+                            "scene {name:?} must have a duration"
+                        )));
+                    }
+                };
+                scenes.push(PyScene {
+                    overlap: overlap_from_any(read(&scene, "overlap")?.as_ref())?,
+                    audio: audio_from_any(read(&scene, "audio")?.as_ref())?,
+                    obj: scene.unbind(),
+                    name: Box::leak(name.into_boxed_str()),
+                    duration,
+                    failure: failure.clone(),
+                });
             }
         }
         let has_render_frame = obj.hasattr("render_frame")?;

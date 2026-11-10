@@ -255,9 +255,11 @@ impl DecodedFrame {
         height: Option<u32>,
     ) -> Option<Self> {
         let image = match resize_to(width, height, (frame.width(), frame.height())) {
-            Some((width, height)) => frame.into_resized_image(&fframes::media::FrameConvertOptions {
-                resize: fframes::media::ResizeVideoFrame { width, height },
-            })?,
+            Some((width, height)) => {
+                frame.into_resized_image(&fframes::media::FrameConvertOptions {
+                    resize: fframes::media::ResizeVideoFrame { width, height },
+                })?
+            }
             None => frame.into_image(),
         };
         Some(Self {
@@ -516,8 +518,4 @@ impl PyShader {
             data: self.0.draw(&frame.inner, values).image,
         })
     }
-}
-
-pub fn image_arc(image: &fframes::media::ImageData<'_>) -> Arc<fframes::usvgr::PreloadedImageData> {
-    image.image.clone()
 }

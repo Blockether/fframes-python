@@ -14,6 +14,8 @@ use pyo3::types::PyDict;
 pub struct PyMedia {
     // Declared before `_directories` so that it drops first: it borrows the directories.
     provider: DynamicMediaProvider<'static>,
+    // Boxed so that a directory keeps its address when the vector grows.
+    #[allow(clippy::vec_box)]
     _directories: Vec<Box<MediaDirectory>>,
     paths: Vec<String>,
 }
@@ -72,14 +74,19 @@ impl PyMedia {
         let mono = match mono {
             Mono::All(mono) => vec![mono; folders.len()],
             Mono::Each(each) if each.len() == folders.len() => each,
-            Mono::Each(_) => return Err(PyTypeError::new_err("mono needs one bool for each folder")),
+            Mono::Each(_) => {
+                return Err(PyTypeError::new_err("mono needs one bool for each folder"));
+            }
         };
         let generated = audio
             .into_iter()
             .flat_map(|audio| audio.iter())
             .map(|(name, samples)| {
                 let data = crate::synth::audio_data(&samples, sample_rate)?;
-                Ok((name.extract::<String>()?, fframes::AudioData::Preloaded(data)))
+                Ok((
+                    name.extract::<String>()?,
+                    fframes::AudioData::Preloaded(data),
+                ))
             })
             .collect::<PyResult<Vec<_>>>()?;
         py.detach(|| {

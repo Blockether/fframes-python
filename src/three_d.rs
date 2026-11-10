@@ -43,9 +43,7 @@ pub fn vec3(value: &Bound<'_, PyAny>) -> PyResult<Vec3> {
 
 /// A sequence of 2 numbers.
 fn vec2(value: &Bound<'_, PyAny>) -> PyResult<Vec2> {
-    let (x, y): (f32, f32) = value
-        .extract()
-        .map_err(|_| type_error("(x, y)", value))?;
+    let (x, y): (f32, f32) = value.extract().map_err(|_| type_error("(x, y)", value))?;
     Ok(Vec2::new(x, y))
 }
 
@@ -377,7 +375,10 @@ impl PyQuat {
         self.0.into()
     }
     fn __repr__(&self) -> String {
-        format!("Quat({}, {}, {}, {})", self.0.x, self.0.y, self.0.z, self.0.w)
+        format!(
+            "Quat({}, {}, {}, {})",
+            self.0.x, self.0.y, self.0.z, self.0.w
+        )
     }
 }
 
@@ -592,7 +593,11 @@ impl PyGeometry {
     }
     #[staticmethod]
     fn sphere(radius: f32, width_segments: u32, height_segments: u32) -> Self {
-        Self::of(td::Geometry::sphere(radius, width_segments, height_segments))
+        Self::of(td::Geometry::sphere(
+            radius,
+            width_segments,
+            height_segments,
+        ))
     }
     #[staticmethod]
     fn sphere_partial(
@@ -785,8 +790,14 @@ impl PyGeometry {
         text: &str,
         size: f32,
         letter_spacing: f32,
-    ) -> PyResult<Vec<(String, (f32, f32), f32, Vec<(Vec<(f32, f32)>, Vec<Vec<(f32, f32)>>)>)>>
-    {
+    ) -> PyResult<
+        Vec<(
+            String,
+            (f32, f32),
+            f32,
+            Vec<(Vec<(f32, f32)>, Vec<Vec<(f32, f32)>>)>,
+        )>,
+    > {
         let glyphs = td::Geometry::text_shapes(font, text, size, letter_spacing)
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
         let points = |p: &[Vec2]| p.iter().map(|&v| v.into()).collect::<Vec<(f32, f32)>>();
@@ -796,7 +807,12 @@ impl PyGeometry {
                 let shapes = g
                     .shapes
                     .iter()
-                    .map(|s| (points(&s.outer), s.holes.iter().map(|h| points(h)).collect()))
+                    .map(|s| {
+                        (
+                            points(&s.outer),
+                            s.holes.iter().map(|h| points(h)).collect(),
+                        )
+                    })
                     .collect();
                 (g.ch.to_string(), g.origin.into(), g.advance, shapes)
             })
@@ -842,7 +858,9 @@ impl PyGeometry {
     fn with_vertex_colors(&self, rgba: &[u8]) -> PyResult<Self> {
         let values = f32_bytes(rgba, "with_vertex_colors")?;
         if values.len() != self.0.positions.len() * 4 {
-            return Err(PyValueError::new_err("with_vertex_colors: 4 floats per vertex"));
+            return Err(PyValueError::new_err(
+                "with_vertex_colors: 4 floats per vertex",
+            ));
         }
         let colors = values
             .as_chunks::<4>()
@@ -1082,7 +1100,11 @@ impl PyLight {
         ground: &Bound<'_, PyAny>,
         intensity: f32,
     ) -> PyResult<Self> {
-        Ok(Self(td::Light::hemisphere(rgb(sky)?, rgb(ground)?, intensity)))
+        Ok(Self(td::Light::hemisphere(
+            rgb(sky)?,
+            rgb(ground)?,
+            intensity,
+        )))
     }
     /// Parallel light from the direction `source`, without shadows.
     #[staticmethod]
@@ -1108,7 +1130,12 @@ impl PyLight {
     }
     #[staticmethod]
     fn spot(color: &Bound<'_, PyAny>, intensity: f32, angle: f32, penumbra: f32) -> PyResult<Self> {
-        Ok(Self(td::Light::spot(rgb(color)?, intensity, angle, penumbra)))
+        Ok(Self(td::Light::spot(
+            rgb(color)?,
+            intensity,
+            angle,
+            penumbra,
+        )))
     }
     /// The light with a shadow map (directional lights only).
     #[pyo3(signature = (*, map_size = 2048, softness = 1.5, strength = 1.0, bias = 1.5, bounds = None))]
@@ -1172,7 +1199,12 @@ impl PyEnvironment {
                     f32,
                     Bound<'_, PyAny>,
                 ) = b.extract()?;
-                Ok(td::SoftBox::new(vec3(&direction)?, width, height, rgb(&color)?))
+                Ok(td::SoftBox::new(
+                    vec3(&direction)?,
+                    width,
+                    height,
+                    rgb(&color)?,
+                ))
             })
             .collect::<PyResult<Vec<_>>>()?;
         Ok(Self(td::Environment::Studio(td::Studio {
@@ -1285,7 +1317,10 @@ impl PyNode {
     #[staticmethod]
     #[pyo3(signature = (blending = "normal"))]
     fn particles(blending: &str) -> PyResult<Self> {
-        Ok(Self(td::Node::particles(Vec::new(), self::blending(blending)?)))
+        Ok(Self(td::Node::particles(
+            Vec::new(),
+            self::blending(blending)?,
+        )))
     }
     fn named(&self, name: &str) -> Self {
         self.with(|n| n.named(name))
@@ -1388,7 +1423,11 @@ impl PyScene {
     }
     /// A solid color, `None` for transparent, or `blur` (0..1) to show the environment.
     #[pyo3(signature = (color = None, *, blur = None))]
-    fn set_background(&mut self, color: Option<&Bound<'_, PyAny>>, blur: Option<f32>) -> PyResult<()> {
+    fn set_background(
+        &mut self,
+        color: Option<&Bound<'_, PyAny>>,
+        blur: Option<f32>,
+    ) -> PyResult<()> {
         self.0.background = match (color, blur) {
             (Some(color), _) => td::Background::Color(rgb(color)?),
             (None, Some(blur)) => td::Background::Environment { blur },
@@ -1459,11 +1498,12 @@ impl PyScene {
     fn set_map_image(&mut self, py: Python<'_>, id: u32, image: &PyImage) -> PyResult<()> {
         let data = AssertSend(image_data(image));
         // Converts the pixels without the GIL, so that the frame threads run in parallel.
-        let texture = py.detach(move || {
-            let data = data;
-            AssertSend(td::Texture::from_image(&data.0))
-        })
-        .0;
+        let texture = py
+            .detach(move || {
+                let data = data;
+                AssertSend(td::Texture::from_image(&data.0))
+            })
+            .0;
         self.material(id)?.map = Some(Arc::new(texture));
         Ok(())
     }
@@ -1571,7 +1611,12 @@ impl PyCamera {
         azimuth: f32,
         elevation: f32,
     ) -> PyResult<Self> {
-        Ok(Self(self.0.orbit(vec3(target)?, distance, azimuth, elevation)))
+        Ok(Self(self.0.orbit(
+            vec3(target)?,
+            distance,
+            azimuth,
+            elevation,
+        )))
     }
     /// The position of the camera.
     #[getter]
@@ -1587,7 +1632,12 @@ impl PyCamera {
     }
     /// The pixel (x, y) and depth of `world` on a `width` x `height` image, or `None`
     /// behind the camera.
-    fn project(&self, world: &Bound<'_, PyAny>, width: f32, height: f32) -> PyResult<Option<PyVec3>> {
+    fn project(
+        &self,
+        world: &Bound<'_, PyAny>,
+        width: f32,
+        height: f32,
+    ) -> PyResult<Option<PyVec3>> {
         Ok(self.0.project(vec3(world)?, width, height).map(PyVec3))
     }
     /// The size in pixels of `world_size` meters at `world`, on an image `height` high.
@@ -1620,7 +1670,11 @@ impl PyRenderer {
             "aces" => td::ToneMapping::Aces,
             "neutral" => td::ToneMapping::Neutral,
             "linear" => td::ToneMapping::Linear,
-            _ => return Err(PyValueError::new_err("tone mapping: 'aces', 'neutral' or 'linear'")),
+            _ => {
+                return Err(PyValueError::new_err(
+                    "tone mapping: 'aces', 'neutral' or 'linear'",
+                ));
+            }
         };
         Ok(Self(self.0.clone().tone_mapping(mapping)))
     }
