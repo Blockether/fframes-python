@@ -7,7 +7,10 @@ method that returns an ``Svgr`` tree. Instead of ``render_frame`` a video can ha
 """
 
 from fframes._fframes import (
+    AnimationRuntime,
     AudioTrack,
+    Captions,
+    CaptionWord,
     Clip,
     Color,
     Context,
@@ -34,7 +37,10 @@ from fframes._fframes import (
 )
 
 __all__ = [
+    "AnimationRuntime",
     "AudioTrack",
+    "CaptionWord",
+    "Captions",
     "Clip",
     "Color",
     "Context",

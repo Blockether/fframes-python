@@ -710,6 +710,7 @@ dependencies = [
  "fframes",
  "fframes_skia_renderer",
  "pyo3",
+ "serde_json",
  "simplecss",
 ]
 
