@@ -39,6 +39,7 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
 ///
 /// `argv` defaults to `sys.argv`. The encoder settings apply to `render`; the defaults are
 /// the ones of the fframes examples (libx264, crf 23, preset ultrafast, tune animation).
+/// `master_gain_db` and `limiter` (the peak ceiling in dBFS, `None` for none) set the master bus.
 #[pyfunction]
 #[pyo3(signature = (
     video,
@@ -51,6 +52,8 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     codec_params = None,
     tmp_dir = None,
     default_output = None,
+    master_gain_db = 0.0,
+    limiter = Some(-1.0),
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -64,6 +67,8 @@ pub fn cli(
     codec_params: Option<&Bound<'_, PyDict>>,
     tmp_dir: Option<PathBuf>,
     default_output: Option<PathBuf>,
+    master_gain_db: f32,
+    limiter: Option<f32>,
 ) -> PyResult<i32> {
     let argv = match argv {
         Some(argv) => argv,
@@ -97,6 +102,14 @@ pub fn cli(
         video_encoder_options: EncoderOptions {
             preferred_encoder: encoder.as_deref(),
             codec_params: (!params.is_empty()).then_some(params.as_slice()),
+            ..Default::default()
+        },
+        audio_mix: fframes::AudioMixOptions {
+            master_gain_db,
+            limiter: limiter.map(|ceiling_db| fframes::LimiterOptions {
+                ceiling_db,
+                ..Default::default()
+            }),
             ..Default::default()
         },
         ..Default::default()

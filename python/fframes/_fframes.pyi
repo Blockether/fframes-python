@@ -392,8 +392,37 @@ class Media:
     subtitles: list[str]
     lottie: list[str]
     fonts: list[str]
-    def __init__(self, *folders: str, mono: bool = False) -> None:
-        """`mono=True` mixes audio down to mono, like Rust `include_media_dir!`."""
+    def __init__(
+        self,
+        *folders: str,
+        mono: bool = False,
+        audio: dict[str, Samples | tuple[Samples, Samples]] | None = None,
+        sample_rate: int = 48000,
+    ) -> None:
+        """`mono=True` mixes audio down to mono, like Rust `include_media_dir!`.
+
+        `audio` adds generated audio: mono samples or a `(left, right)` pair.
+        """
+
+Samples = bytes | Sequence[float]
+"""Little-endian f32 bytes (`array.astype('<f4').tobytes()`) or numbers."""
+
+def lottie_frame(ctx: Context, file: str, seconds: float) -> Svgr:
+    """The Lottie `file` at `seconds`, in its own units; empty if missing."""
+
+class Noise:
+    """White noise in -1..1 from a xorshift32 state."""
+    def __init__(self, seed: int) -> None: ...
+    def take(self, n: int) -> bytes: ...
+
+def biquad(
+    kind: Literal["low", "high", "band"],
+    samples: Samples,
+    freq: float | Samples,
+    q: float,
+    sample_rate: float = 48000.0,
+) -> bytes:
+    """`samples` through an RBJ biquad; `freq` is one cutoff or one per sample."""
 
 def cli(
     video: Any,
@@ -406,4 +435,6 @@ def cli(
     codec_params: dict[str, str] | None = None,
     tmp_dir: str | None = None,
     default_output: str | None = None,
+    master_gain_db: float = 0.0,
+    limiter: float | None = -1.0,
 ) -> int: ...
