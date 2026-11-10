@@ -304,7 +304,7 @@ if __name__ == "__main__":
     sys.exit(
         ff.cli(
             SignalLabVideo(),
-            media=_media.media("signal-lab"),
+            media=_media.media("signal-lab", mono=True),
             codec_params={"crf": "20", "preset": "medium", "tune": "animation"},
         )
     )

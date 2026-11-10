@@ -19,5 +19,6 @@ def folder(example: str, kind: str = "media") -> Path:
     return path
 
 
-def media(example: str, kind: str = "media") -> fframes.Media:
-    return fframes.Media(folder(example, kind))
+def media(example: str, kind: str = "media", *, mono: bool = False) -> fframes.Media:
+    """`mono=True` matches Rust `include_media_dir!`, which mixes audio down to mono."""
+    return fframes.Media(folder(example, kind), mono=mono)
