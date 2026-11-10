@@ -122,7 +122,7 @@ renderer = "cpu"
 max_diff = 0
 
 # RenderingScene (6.33s..8.67s) draws an FPS counter from rand::random(), so two Rust renders
-# differ there too. These timestamps cover every other scene and each embedded preview.
+# differ there too. These timestamps and --every cover every other scene and each embedded preview.
 [beta]
 script = "examples/beta/main.py"
 rust_bin = "beta_example_bin"
@@ -131,6 +131,7 @@ at = "1s,2s,4.5s,10s,13s,15s,16.5s,18s,22.5s,24.5s,26.5s,29s,31s,31.98s"
 args = []
 renderer = "cpu"
 max_diff = 0
+skip = ["380..520"]
 
 [lottie]
 script = "examples/lottie/main.py"

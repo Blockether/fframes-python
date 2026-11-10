@@ -134,9 +134,10 @@ class CodeDemoScene:
 GPU_SECOND = f32(1.1)
 RENDERING_SPRING = spring(0.6, 300.0, 26.0)
 BASE_FPS = ff.timeline(((GPU_SECOND, after(GPU_SECOND, 0.8)), 60.0, 100.0, LINEAR))
-RENDERING_X1 = F64((0.0, -400.0, 260.0, RENDERING_SPRING), ((0.3, 2.2), 260.0, 310.0, LINEAR))
-RENDERING_X2 = F64((0.0, 1900.0, 460.0, RENDERING_SPRING), ((0.3, 2.2), 460.0, 410.0, LINEAR))
-PROGRESS_WIDTH = F64(
+# f32 in Rust, like the heading x timelines.
+RENDERING_X1 = ff.timeline((0.0, -400.0, 260.0, RENDERING_SPRING), ((0.3, 2.2), 260.0, 310.0, LINEAR))
+RENDERING_X2 = ff.timeline((0.0, 1900.0, 460.0, RENDERING_SPRING), ((0.3, 2.2), 460.0, 410.0, LINEAR))
+PROGRESS_WIDTH = ff.timeline(
     ((0.0, 0.8), 900.0, 1000.0, LINEAR),
     ((GPU_SECOND, after(GPU_SECOND, 1.0)), 1000.0, 1350.0, LINEAR),
 )
@@ -162,15 +163,15 @@ class RenderingScene:
         # Like the Rust example, the counter jitters with a random value on each frame.
         fps = int(f32(frame.animate(BASE_FPS) + f32(f32(random.random()) * 4.0)))
         return RENDERING(
-            x1=RENDERING_X1(frame),
-            x2=RENDERING_X2(frame),
+            x1=frame.animate(RENDERING_X1),
+            x2=frame.animate(RENDERING_X2),
             weight="400" if gpu else "900",
             size="170" if gpu else "150",
             family="Bubble Bobble" if gpu else "DM Sans",
             kind="  GPU    " if gpu else "native ",
             rendering="     rendering",
             fps=f"Rendering fps: {fps}",
-            width=PROGRESS_WIDTH(frame),
+            width=frame.animate(PROGRESS_WIDTH),
         )
 
 
@@ -367,8 +368,9 @@ PODCAST_TS = f32(4.8)
 TIKTOK_TS = f32(6.8)
 LIST_SPRING = spring(1.0, 140.0, 16.0)
 EXAMPLES_SPRING = spring(1.0, 100.0, 16.0)
-SUBTITLE_X = F64((0.0, 200.0, 960.0, EXAMPLES_SPRING))
-FIRST_X = F64((0.0, 1700.0, 960.0, EXAMPLES_SPRING))
+# f32 in Rust, like the heading x timelines.
+SUBTITLE_X = ff.timeline((0.0, 200.0, 960.0, EXAMPLES_SPRING))
+FIRST_X = ff.timeline((0.0, 1700.0, 960.0, EXAMPLES_SPRING))
 LIST = ff.timeline(
     (MARKETING_TS, Transform.translate(0, 0), Transform.translate(0, -180), LIST_SPRING),
     (PODCAST_TS, Transform.translate(0, -180), Transform.translate(0, -380), LIST_SPRING),
@@ -437,9 +439,9 @@ class BetaExamples:
         else:
             video = self.tiktok.render_frame(frame.into_global(), ctx)
         return EXAMPLES(
-            subtitle_x=SUBTITLE_X(frame),
+            subtitle_x=frame.animate(SUBTITLE_X),
             list=frame.animate(LIST),
-            first_x=FIRST_X(frame),
+            first_x=frame.animate(FIRST_X),
             preview=TIKTOK_PREVIEW if seconds >= TIKTOK_TS else PREVIEW,
             video=video,
         )

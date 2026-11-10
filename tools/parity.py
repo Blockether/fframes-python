@@ -7,17 +7,19 @@ $FFRAMES_DIR/target/release (default ../fframes). Exit status 1 when a frame dif
 than `max_diff` of its example, or a render fails.
 
 With `--render 0s..3s` both implementations render that range to a video file instead, and
-the decoded video frames and audio samples are compared (ffmpeg on PATH).
+the decoded video frames and audio samples are compared (ffmpeg on PATH). With `--every`
+every frame of the video is compared, except the `skip` ranges.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +43,8 @@ class Example:
     # False when the encoder (libx265, VideoToolbox) gives other pixels on each run, also
     # for the Rust reference: --render then compares only the frame count and size.
     video_exact: bool = True
+    # Frame ranges `a..b` (b excluded) that --every leaves out: random content in Rust.
+    skip: tuple[str, ...] = ()
 
     @property
     def rust(self) -> Path:
@@ -53,7 +57,10 @@ class Example:
 
 def load() -> list[Example]:
     data = tomllib.loads((REPO / "tools" / "parity.toml").read_text())
-    return [Example(name, **{**v, "args": tuple(v.get("args", ()))}) for name, v in data.items()]
+    return [
+        Example(name, **{**v, "args": tuple(v.get("args", ())), "skip": tuple(v.get("skip", ()))})
+        for name, v in data.items()
+    ]
 
 
 def render(argv: list[str], cwd: Path, out: Path) -> None:
@@ -179,7 +186,39 @@ def check_render(e: Example, range_: str) -> dict[str, object]:
         return result
 
 
-def run(e: Example, range_: str | None) -> bool:
+def frame_count(e: Example) -> int:
+    """The number of frames of the Rust reference, from its `timeline`."""
+    done = subprocess.run(
+        [str(e.rust), *e.args, "timeline"], check=True, cwd=e.cwd, capture_output=True, text=True
+    )
+    return int(re.search(r"(\d+) frames \(", done.stdout).group(1))
+
+
+def check_every(e: Example, chunk: int = 240) -> dict[int, int]:
+    """Compares every frame outside `e.skip`; the differing frames and their differences."""
+    skipped = set()
+    for span in e.skip:
+        start, end = span.split("..")
+        skipped.update(range(int(start), int(end)))
+    indices = [i for i in range(frame_count(e)) if i not in skipped]
+    differ = {}
+    for at in range(0, len(indices), chunk):
+        part = replace(e, at=",".join(f"{i}f" for i in indices[at : at + chunk]))
+        differ.update({int(name[:-5]): d for name, d in check(part).items() if d > e.max_diff})
+    return differ
+
+
+def run(e: Example, range_: str | None, every: bool = False) -> bool:
+    if every:
+        differ = check_every(e)
+        ok = not differ
+        detail = (
+            f"{len(differ)} frames differ, first {sorted(differ.items())[:10]}"
+            if differ
+            else "every frame equal"
+        )
+        print(f"{'ok  ' if ok else 'FAIL'} {e.name}: {detail}")
+        return ok
     if range_ is None:
         worst = max(check(e).values())
         ok = worst <= e.max_diff
@@ -198,6 +237,7 @@ def run(e: Example, range_: str | None) -> bool:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Compare the ports with the Rust references.")
     parser.add_argument("--render", metavar="RANGE", help="compare a rendered video range")
+    parser.add_argument("--every", action="store_true", help="compare every frame")
     parser.add_argument("names", nargs="*")
     args = parser.parse_args(argv)
     names = args.names
@@ -208,7 +248,7 @@ def main(argv: list[str]) -> int:
     failed = 0
     for e in examples:
         try:
-            ok = run(e, args.render)
+            ok = run(e, args.render, args.every)
         except RuntimeError as error:
             ok = False
             print(f"FAIL {e.name}: {error}")
