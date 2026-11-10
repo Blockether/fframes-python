@@ -5,7 +5,8 @@ use pyo3::exceptions::{PyOSError, PyTypeError};
 use pyo3::prelude::*;
 
 /// The media of one or more folders. A name in an earlier folder wins.
-/// Audio keeps stereo; `mono=True` mixes it down like Rust `include_media_dir!`.
+/// Audio keeps stereo; `mono=True` mixes it down like Rust `include_media_dir!`. A list of bools
+/// sets `mono` for each folder, like a `CombinedMediaProvider` of both kinds.
 /// Pass it as `media=` to `fframes.cli`.
 #[pyclass(name = "Media", module = "fframes", frozen)]
 pub struct PyMedia {
@@ -19,6 +20,13 @@ impl PyMedia {
     pub fn provider(&self) -> &DynamicMediaProvider<'_> {
         &self.provider
     }
+}
+
+/// `mono=` of `Media`: one bool for all folders, or one for each folder.
+#[derive(FromPyObject)]
+pub enum Mono {
+    All(bool),
+    Each(Vec<bool>),
 }
 
 fn load(
@@ -48,16 +56,21 @@ fn load(
 #[pymethods]
 impl PyMedia {
     #[new]
-    #[pyo3(signature = (*folders, mono = false))]
-    fn new(py: Python<'_>, folders: Vec<std::path::PathBuf>, mono: bool) -> PyResult<Self> {
+    #[pyo3(signature = (*folders, mono = Mono::All(false)))]
+    fn new(py: Python<'_>, folders: Vec<std::path::PathBuf>, mono: Mono) -> PyResult<Self> {
         if folders.is_empty() {
             return Err(PyTypeError::new_err("Media needs at least one folder"));
         }
+        let mono = match mono {
+            Mono::All(mono) => vec![mono; folders.len()],
+            Mono::Each(each) if each.len() == folders.len() => each,
+            Mono::Each(_) => return Err(PyTypeError::new_err("mono needs one bool for each folder")),
+        };
         py.detach(|| {
             let mut merged = DynamicMediaProvider::default();
             let mut directories = Vec::with_capacity(folders.len());
             // Later folders first, so that an earlier folder overwrites a name.
-            for folder in folders.iter().rev() {
+            for (folder, &mono) in folders.iter().zip(&mono).rev() {
                 let (directory, provider) = load(folder, mono)?;
                 merged.audio.extend(provider.audio);
                 merged.images.extend(provider.images);
