@@ -5,6 +5,7 @@ mod frame;
 mod media;
 mod media_api;
 mod render;
+mod render_options;
 mod svgr;
 mod timing;
 mod values;

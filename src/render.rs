@@ -6,11 +6,11 @@ use std::process::ExitCode;
 use clap::Parser;
 use fframes::cli::{Cli, NoArgs};
 use fframes::{EncoderOptions, RenderOptions};
-use fframes_skia_renderer::cli::SkiaRenderers;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 use crate::media::PyMedia;
+use crate::render_options;
 use crate::video::PyVideo;
 
 /// The libx264 settings of the fframes examples.
@@ -51,6 +51,12 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     codec_params = None,
     tmp_dir = None,
     default_output = None,
+    renderer = None,
+    gpu_contexts = None,
+    buffer_queue_size = None,
+    master_gain_db = 0.0,
+    limiter = None,
+    rate_control = None,
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -64,6 +70,12 @@ pub fn cli(
     codec_params: Option<&Bound<'_, PyDict>>,
     tmp_dir: Option<PathBuf>,
     default_output: Option<PathBuf>,
+    renderer: Option<String>,
+    gpu_contexts: Option<&Bound<'_, PyAny>>,
+    buffer_queue_size: Option<usize>,
+    master_gain_db: f32,
+    limiter: Option<&Bound<'_, PyAny>>,
+    rate_control: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<i32> {
     let argv = match argv {
         Some(argv) => argv,
@@ -85,8 +97,11 @@ pub fn cli(
         None if encoder.as_deref() == Some("libx264") => DEFAULT_CODEC_PARAMS.to_vec(),
         None => Vec::new(),
     };
+    let renderers =
+        render_options::renderers(renderer.as_deref(), gpu_contexts, buffer_queue_size)?;
+    let audio_mix = render_options::audio_mix(master_gain_db, limiter)?;
     let tmp_dir = tmp_dir.unwrap_or_else(|| std::env::temp_dir().join("fframes-python"));
-    let options = RenderOptions {
+    let mut options = RenderOptions {
         media: media
             .as_deref()
             .map(|media| media.provider() as &dyn fframes::MediaProvider<'_>),
@@ -99,11 +114,13 @@ pub fn cli(
             codec_params: (!params.is_empty()).then_some(params.as_slice()),
             ..Default::default()
         },
+        audio_mix,
         ..Default::default()
     };
+    render_options::rate_control(&mut options.video_encoder_options, rate_control)?;
     let mut runner = fframes::cli::new(&video, options)
         .args(args)
-        .renderers(SkiaRenderers::default());
+        .renderers(renderers);
     if let Some(output) = default_output {
         runner = runner.default_output(output);
     }
