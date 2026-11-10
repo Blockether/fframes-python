@@ -6,6 +6,7 @@ mod media;
 mod media_api;
 mod render;
 mod svgr;
+mod three_d;
 mod timing;
 mod values;
 mod video;
@@ -38,5 +39,6 @@ fn _fframes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<media_api::PyShader>()?;
     m.add_function(wrap_pyfunction!(media_api::center_spectrum_low_frequencies, m)?)?;
     m.add_function(wrap_pyfunction!(render::cli, m)?)?;
+    three_d::register(m)?;
     Ok(())
 }

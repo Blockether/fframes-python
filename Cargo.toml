@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.30", features = ["abi3-py310"] }
-fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["cli", "compile-time-svgtree", "captions", "lottie", "3d"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["cli", "compile-time-svgtree", "captions", "lottie", "3d", "wgpu"] }
 simplecss = "0.2.2"
 clap = { version = "4.5", features = ["derive"] }
 

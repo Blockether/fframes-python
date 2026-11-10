@@ -6,6 +6,8 @@ method that returns an ``Svgr`` tree. Instead of ``render_frame`` a video can ha
 ``scenes``. Run it with ``fframes.cli(video)``.
 """
 
+import sys as _sys
+
 from fframes._fframes import (
     AudioTrack,
     Clip,
@@ -30,8 +32,11 @@ from fframes._fframes import (
     cli,
     svgr,
     template,
+    three_d,
     timeline,
 )
+
+_sys.modules["fframes.three_d"] = three_d
 
 __all__ = [
     "AudioTrack",
@@ -57,5 +62,6 @@ __all__ = [
     "cli",
     "svgr",
     "template",
+    "three_d",
     "timeline",
 ]
