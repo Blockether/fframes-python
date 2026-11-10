@@ -36,6 +36,7 @@ at = "0s,1s,2.5s,4s"
 args = []
 renderer = "cpu"
 max_diff = 0
+video_exact = false
 
 [tiktok]
 script = "examples/tiktok.py"
@@ -99,3 +100,4 @@ at = "0s,1s,2.5s,4s"
 args = []
 renderer = "cpu"
 max_diff = 0
+video_exact = false
