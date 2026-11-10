@@ -363,11 +363,18 @@ impl PyContext {
     }
 
     /// `svgr` rasterized to a `width` x `height` image, or `None` without a rasterizer.
-    fn render_svgr(&self, svgr: &PySvgr, width: u32, height: u32) -> PyResult<Option<PyImage>> {
+    fn render_svgr(
+        &self,
+        py: Python<'_>,
+        svgr: &PySvgr,
+        width: u32,
+        height: u32,
+    ) -> PyResult<Option<PyImage>> {
         let tree = PySvgr::into_svgr(svgr.nodes.clone());
-        Ok(self
-            .get()?
-            .render_svgr(tree, width, height)
+        let ctx = self.get()?;
+        // Rasterizes without the GIL, so that the frame threads run in parallel.
+        Ok(py
+            .detach(|| ctx.render_svgr(tree, width, height))
             .map(|image| PyImage { data: image.image }))
     }
 
