@@ -192,7 +192,9 @@ impl TNode {
     }
 
     fn has_holes(&self) -> bool {
-        self.attrs.iter().any(|a| !matches!(a, TAttr::Static { .. }))
+        self.attrs
+            .iter()
+            .any(|a| !matches!(a, TAttr::Static { .. }))
             || self.children.iter().any(|c| match c {
                 TChild::Hole(_) => true,
                 TChild::Node(node) => node.has_holes(),
@@ -326,7 +328,9 @@ fn instantiate_node(node: &TNode, values: &Values<'_>) -> PyResult<NestedNodeDat
                 element,
                 hole,
             } => {
-                if let Some(value) = dynamic_attribute_value(&values.values[*hole], *name, *element)? {
+                if let Some(value) =
+                    dynamic_attribute_value(&values.values[*hole], *name, *element)?
+                {
                     attrs.push(Attribute { name: *name, value });
                 }
             }
@@ -392,16 +396,18 @@ fn dynamic_attribute_value(
     }
     if value.is_instance_of::<PyBool>() {
         let text = if value.is_truthy()? { "true" } else { "false" };
-        return Ok(Some(SvgAttributeValue::StringStorage(StringStorage::Borrowed(text))));
+        return Ok(Some(SvgAttributeValue::StringStorage(
+            StringStorage::Borrowed(text),
+        )));
     }
     if let Ok(i) = value.cast::<PyInt>() {
         let v: f64 = i.extract()?;
         return Ok(Some(SvgAttributeValue::from(v)));
     }
     if let Ok(s) = value.cast::<PyString>() {
-        return Ok(Some(SvgAttributeValue::StringStorage(StringStorage::new_owned(
-            &*s.to_cow()?,
-        ))));
+        return Ok(Some(SvgAttributeValue::StringStorage(
+            StringStorage::new_owned(&*s.to_cow()?),
+        )));
     }
     if let Ok(color) = value.cast::<PyColor>() {
         return Ok(Some(SvgAttributeValue::from(color.get().0)));
@@ -463,7 +469,12 @@ pub fn push_child_value(value: &Bound<'_, PyAny>, out: &mut Nodes) -> PyResult<(
 fn accepts_color(aid: AId) -> bool {
     matches!(
         aid,
-        AId::Fill | AId::Stroke | AId::StopColor | AId::FloodColor | AId::LightingColor | AId::Color
+        AId::Fill
+            | AId::Stroke
+            | AId::StopColor
+            | AId::FloodColor
+            | AId::LightingColor
+            | AId::Color
     )
 }
 
@@ -505,7 +516,12 @@ fn points_to_segments(value: &str, element: EId) -> Option<Vec<svgrtypes::PathSe
 
 /// Types a textual attribute value like svgr-macro `inline_attribute_value`. A static value of a
 /// template keeps its path geometry in a `StaticPathData`, so its `tiny_skia` path is built once.
-fn typed_value(value: String, aid: AId, element: EId, is_static: bool) -> SvgAttributeValue<'static> {
+fn typed_value(
+    value: String,
+    aid: AId,
+    element: EId,
+    is_static: bool,
+) -> SvgAttributeValue<'static> {
     let geometry = if aid == AId::D {
         path_segments(&value)
     } else if aid == AId::Points && matches!(element, EId::Polygon | EId::Polyline) {
@@ -516,7 +532,8 @@ fn typed_value(value: String, aid: AId, element: EId, is_static: bool) -> SvgAtt
     if let Some(segments) = geometry {
         if is_static {
             // Templates live for the whole process, see `template_cache`.
-            let segments: &'static [svgrtypes::PathSegment] = Box::leak(segments.into_boxed_slice());
+            let segments: &'static [svgrtypes::PathSegment] =
+                Box::leak(segments.into_boxed_slice());
             let path: &'static StaticPathData = Box::leak(Box::new(StaticPathData::new(segments)));
             return SvgAttributeValue::StaticPath(path);
         }
@@ -571,9 +588,12 @@ fn split_named(markup: &str) -> PyResult<(Vec<Piece<'_>>, Vec<String>)> {
                 start = i;
             }
             b'{' => {
-                let end = markup[i + 1..].find('}').map(|p| p + i + 1).ok_or_else(|| {
-                    PyValueError::new_err(format!("svgr: unclosed '{{' at byte {i}"))
-                })?;
+                let end = markup[i + 1..]
+                    .find('}')
+                    .map(|p| p + i + 1)
+                    .ok_or_else(|| {
+                        PyValueError::new_err(format!("svgr: unclosed '{{' at byte {i}"))
+                    })?;
                 let name = markup[i + 1..end].trim();
                 if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
                     return Err(PyValueError::new_err(format!(
@@ -623,8 +643,8 @@ fn pieces_to_xml(pieces: &[Piece<'_>]) -> PyResult<String> {
                 while i < bytes.len() {
                     let b = bytes[i];
                     state = match state {
-                        State::Content if text[i..].starts_with("<!--") => State::Comment,
-                        State::Comment if text[i..].starts_with("-->") => State::Content,
+                        State::Content if bytes[i..].starts_with(b"<!--") => State::Comment,
+                        State::Comment if bytes[i..].starts_with(b"-->") => State::Content,
                         State::Content if b == b'<' => State::Tag,
                         State::Tag if b == b'>' => State::Content,
                         State::Tag if b == b'=' => State::AfterEq,
@@ -842,25 +862,28 @@ fn parse_children(node: &roxmltree::Node<'_, '_>) -> PyResult<Vec<TChild>> {
     Ok(children)
 }
 
-/// Collapses XML whitespace like SVG `xml:space="default"`: runs of whitespace become one space,
-/// the first text of a `<text>` loses its leading space, the last its trailing space, and pure
-/// indentation (whitespace with a line break) disappears. A `<tspan>` keeps its edge spaces, as
-/// in `<tspan>Warsaw </tspan><tspan>2025</tspan>`.
+/// Collapses the indentation of the markup: a run of whitespace with a line break becomes one
+/// space, the first text of an element loses its leading space, the last its trailing space, and
+/// pure indentation disappears. Other runs stay as they are, like the text literals of `svgr!`.
 fn normalize_text(text: &str, is_first: bool, is_last: bool) -> Option<String> {
     if text.trim().is_empty() && text.contains('\n') {
         return None;
     }
     let mut out = String::with_capacity(text.len());
-    let mut in_space = false;
-    for c in text.chars() {
+    let mut run = String::new();
+    for c in text.chars().chain(std::iter::once('\0')) {
         if c.is_whitespace() {
-            if !in_space {
-                out.push(' ');
-            }
-            in_space = true;
+            run.push(c);
+            continue;
+        }
+        if run.contains('\n') {
+            out.push(' ');
         } else {
+            out.push_str(&run);
+        }
+        run.clear();
+        if c != '\0' {
             out.push(c);
-            in_space = false;
         }
     }
     let mut out = out.as_str();
@@ -883,10 +906,7 @@ fn parse_text_children(node: &roxmltree::Node<'_, '_>, parent: EId) -> PyResult<
     for (index, child) in all.iter().enumerate() {
         if child.is_text() {
             let text = child.text().unwrap_or_default();
-            let is_text = parent == EId::Text;
-            let is_first = is_text && index == 0;
-            let is_last = is_text && index + 1 == all.len();
-            if let Some(text) = normalize_text(text, is_first, is_last) {
+            if let Some(text) = normalize_text(text, index == 0, index + 1 == all.len()) {
                 children.push(TChild::Node(TNode {
                     kind: NestedNodeKind::Text(StringStorage::new_owned(text)),
                     attrs: Vec::new(),

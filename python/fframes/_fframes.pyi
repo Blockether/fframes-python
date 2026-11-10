@@ -1,6 +1,6 @@
 """Type stubs for the native fframes module."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, ClassVar, Literal, Protocol, TypeAlias
 
 ColorLike: TypeAlias = Color | str
@@ -335,6 +335,64 @@ def wave_path(
     baseline: float = 1080.0,
 ) -> str: ...
 
+class AnimationRuntime:
+    duration: float
+    def __init__(self, duration: float, easing: Easing | str | None = None) -> None: ...
+    def animate(self, frame: Frame, on_second: float, from_: Animatable, to: Animatable) -> Any: ...
+
+class CaptionWord:
+    text: str
+    metadata: dict[str, Any]
+    cue_metadata: dict[str, Any]
+    width: float
+    height: float
+    rect: tuple[float, float, float, float]
+    state: Literal["upcoming", "active", "spoken"]
+    is_active: bool
+    progress: float
+    elapsed: float | None
+    time: float
+    start: float | None
+    end: float | None
+    cue_index: int
+    token_index: int
+    word_index: int | None
+    def id(self, key: str) -> str: ...
+    def clip(self, content: Svgr) -> Svgr: ...
+    def mask_text(self, content: Svgr) -> Svgr: ...
+
+class Captions:
+    def __init__(self, media: str, x: float, y: float, width: float, height: float) -> None: ...
+    def font(self, family: str, size: int) -> Captions: ...
+    def font_weight(self, weight: int) -> Captions: ...
+    def bounds(self, x: float, y: float, width: float, height: float) -> Captions: ...
+    def line_height(self, multiplier: float) -> Captions: ...
+    def mode(self, mode: Literal["highlight", "word", "reveal", "karaoke"]) -> Captions: ...
+    def clock(self, clock: Literal["scene", "global"]) -> Captions: ...
+    def active_fill(self, fill: str) -> Captions: ...
+    def upcoming_fill(self, fill: str) -> Captions: ...
+    def spoken_fill(self, fill: str) -> Captions: ...
+    def outline(self, fill: str, width: float) -> Captions: ...
+    def active_background(self, fill: str, padding: float) -> Captions: ...
+    def underline(self, fill: str, width: float) -> Captions: ...
+    def render(self, frame: Frame, ctx: Context, *, at: float | None = None) -> Svgr: ...
+    def render_with(
+        self,
+        frame: Frame,
+        ctx: Context,
+        draw: Callable[[CaptionWord, Svgr], Svgr | None],
+        *,
+        at: float | None = None,
+    ) -> Svgr: ...
+    def highlight_with(
+        self,
+        frame: Frame,
+        ctx: Context,
+        draw: Callable[[CaptionWord, Svgr], Svgr | None],
+        *,
+        at: float | None = None,
+    ) -> Svgr: ...
+
 class Media:
     images: list[str]
     audio: list[str]
@@ -342,7 +400,8 @@ class Media:
     subtitles: list[str]
     lottie: list[str]
     fonts: list[str]
-    def __init__(self, *folders: str, mono: bool = False) -> None: ...
+    def __init__(self, *folders: str, mono: bool = False) -> None:
+        """`mono=True` mixes audio down to mono, like Rust `include_media_dir!`."""
 
 def cli(
     video: Any,
@@ -361,6 +420,9 @@ def cli(
     concurrency: int | None = None,
     text_cache_capacity: int | None = None,
     renderer: Literal["cpu", "skia-cpu", "gpu"] | None = None,
-    gpu_contexts: int | None = None,
+    gpu_contexts: int | Literal["max"] | None = None,
     buffer_queue_size: int | None = None,
+    master_gain_db: float = 0.0,
+    limiter: bool | dict[str, float] | None = None,
+    declick: bool = True,
 ) -> int: ...

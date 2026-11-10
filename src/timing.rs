@@ -71,19 +71,31 @@ impl PyDuration {
     }
 
     fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(DurSpec::Add(Box::new(self.0.clone()), Box::new(duration_from_any(other)?))))
+        Ok(Self(DurSpec::Add(
+            Box::new(self.0.clone()),
+            Box::new(duration_from_any(other)?),
+        )))
     }
 
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(DurSpec::Add(Box::new(duration_from_any(other)?), Box::new(self.0.clone()))))
+        Ok(Self(DurSpec::Add(
+            Box::new(duration_from_any(other)?),
+            Box::new(self.0.clone()),
+        )))
     }
 
     fn __sub__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(DurSpec::Sub(Box::new(self.0.clone()), Box::new(duration_from_any(other)?))))
+        Ok(Self(DurSpec::Sub(
+            Box::new(self.0.clone()),
+            Box::new(duration_from_any(other)?),
+        )))
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(DurSpec::Sub(Box::new(duration_from_any(other)?), Box::new(self.0.clone()))))
+        Ok(Self(DurSpec::Sub(
+            Box::new(duration_from_any(other)?),
+            Box::new(self.0.clone()),
+        )))
     }
 
     fn __repr__(&self) -> String {
@@ -172,19 +184,31 @@ impl PyTimestamp {
     }
 
     fn __add__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(TsSpec::Add(Box::new(self.0.clone()), Box::new(timestamp_from_any(other)?))))
+        Ok(Self(TsSpec::Add(
+            Box::new(self.0.clone()),
+            Box::new(timestamp_from_any(other)?),
+        )))
     }
 
     fn __radd__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(TsSpec::Add(Box::new(timestamp_from_any(other)?), Box::new(self.0.clone()))))
+        Ok(Self(TsSpec::Add(
+            Box::new(timestamp_from_any(other)?),
+            Box::new(self.0.clone()),
+        )))
     }
 
     fn __sub__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(TsSpec::Sub(Box::new(self.0.clone()), Box::new(timestamp_from_any(other)?))))
+        Ok(Self(TsSpec::Sub(
+            Box::new(self.0.clone()),
+            Box::new(timestamp_from_any(other)?),
+        )))
     }
 
     fn __rsub__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        Ok(Self(TsSpec::Sub(Box::new(timestamp_from_any(other)?), Box::new(self.0.clone()))))
+        Ok(Self(TsSpec::Sub(
+            Box::new(timestamp_from_any(other)?),
+            Box::new(self.0.clone()),
+        )))
     }
 
     fn __repr__(&self) -> String {
@@ -310,7 +334,11 @@ impl PyAudioTrack {
             "equal-power" => FadeCurve::EqualPower,
             "s-curve" => FadeCurve::SCurve,
             "exponential" => FadeCurve::Exponential,
-            other => return Err(PyValueError::new_err(format!("unknown fade curve {other:?}"))),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "unknown fade curve {other:?}"
+                )));
+            }
         };
         Ok(self.with(|t| t.fade_curve(curve)))
     }
@@ -438,7 +466,10 @@ pub fn overlap_from_any(value: Option<&Bound<'_, PyAny>>) -> PyResult<OverlapSpe
         return Ok(OverlapSpec::default());
     }
     if let Ok(next) = value.extract::<f32>() {
-        return Ok(OverlapSpec { previous: 0.0, next });
+        return Ok(OverlapSpec {
+            previous: 0.0,
+            next,
+        });
     }
     if let Ok((previous, next)) = value.extract::<(f32, f32)>() {
         return Ok(OverlapSpec { previous, next });

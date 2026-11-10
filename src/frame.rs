@@ -105,7 +105,13 @@ impl PyFrame {
         let font = Font::new(family, size, weight, style, stretch)?;
         Ok(self
             .inner
-            .text_fit(ctx.get()?, font.query(), text, max_width, media_api::overflow(overflow))
+            .text_fit(
+                ctx.get()?,
+                font.query(),
+                text,
+                max_width,
+                media_api::overflow(overflow),
+            )
             .map(std::borrow::Cow::into_owned))
     }
 
@@ -135,8 +141,12 @@ impl PyFrame {
             font: Font::new(family, size, weight, style, stretch)?,
             width,
             line_height,
-            x: x.map(media_api::attr_string).transpose()?.unwrap_or_default(),
-            y: y.map(media_api::attr_string).transpose()?.unwrap_or_default(),
+            x: x.map(media_api::attr_string)
+                .transpose()?
+                .unwrap_or_default(),
+            y: y.map(media_api::attr_string)
+                .transpose()?
+                .unwrap_or_default(),
             align: media_api::align(align)?,
             fill,
             dominant_baseline,
@@ -171,7 +181,7 @@ impl PyFrame {
             ..Default::default()
         };
         let (ctx, inner) = (ctx.get()?, &self.inner);
-        media_api::without_gil(py, || {
+        crate::gil::detached(py, || {
             let frame = inner.get_synced_video_frame(ctx, file, &input)?;
             media_api::DecodedFrame::new(&*frame, width, height)
         })
@@ -191,7 +201,7 @@ impl PyFrame {
         height: Option<u32>,
     ) -> PyResult<Option<PyVideoFrame>> {
         let (ctx, inner) = (ctx.get()?, &self.inner);
-        media_api::without_gil(py, || {
+        crate::gil::detached(py, || {
             let frame = inner.video_frame_at(ctx, file, seconds, None)?;
             media_api::DecodedFrame::new(&*frame, width, height)
         })
@@ -213,12 +223,14 @@ impl PyFrame {
             .get()?
             .get_audio(audio)
             .ok_or_else(|| PyValueError::new_err(format!("no audio {audio:?} in the media")))?;
-        Ok(self.inner.visualize_audio_frame(fframes::VisualizeFrameInput {
-            audio: data,
-            sample_size: media_api::sample_size(sample_size)?,
-            smooth_level,
-            window: media_api::window(window)?,
-        }))
+        Ok(self
+            .inner
+            .visualize_audio_frame(fframes::VisualizeFrameInput {
+                audio: data,
+                sample_size: media_api::sample_size(sample_size)?,
+                smooth_level,
+                window: media_api::window(window)?,
+            }))
     }
 
     /// The subtitle text of `file` at this frame, or `None`.
@@ -256,7 +268,10 @@ impl PyFrame {
             height,
         };
         Ok(PySvgr {
-            nodes: self.inner.play_lottie(ctx.get()?, file, options).as_subtree(),
+            nodes: self
+                .inner
+                .play_lottie(ctx.get()?, file, options)
+                .as_subtree(),
         })
     }
 
@@ -348,11 +363,18 @@ impl PyContext {
     }
 
     /// `svgr` rasterized to a `width` x `height` image, or `None` without a rasterizer.
-    fn render_svgr(&self, svgr: &PySvgr, width: u32, height: u32) -> PyResult<Option<PyImage>> {
+    fn render_svgr(
+        &self,
+        py: Python<'_>,
+        svgr: &PySvgr,
+        width: u32,
+        height: u32,
+    ) -> PyResult<Option<PyImage>> {
         let tree = PySvgr::into_svgr(svgr.nodes.clone());
-        Ok(self
-            .get()?
-            .render_svgr(tree, width, height)
+        let ctx = self.get()?;
+        // Rasterizes without the GIL, so that the frame threads run in parallel.
+        Ok(py
+            .detach(|| ctx.render_svgr(tree, width, height))
             .map(|image| PyImage { data: image.image }))
     }
 

@@ -1,13 +1,12 @@
 //! `Media`: folders of images, fonts, audio, video, subtitles and Lottie files, loaded once.
 
-use fframes::media::PreloadedAudioData;
-use fframes::{AudioData, DynamicMediaProvider, MediaDirectory};
+use fframes::{DynamicMediaProvider, MediaDirectory};
 use pyo3::exceptions::{PyOSError, PyTypeError};
 use pyo3::prelude::*;
 
 /// The media of one or more folders. A name in an earlier folder wins.
-/// Pass it as `media=` to `fframes.cli`. With `mono`, stereo audio is mixed down to one channel,
-/// as `include_media_dir!` does without `stereo`.
+/// Audio keeps stereo; `mono=True` mixes it down like Rust `include_media_dir!`.
+/// Pass it as `media=` to `fframes.cli`.
 #[pyclass(name = "Media", module = "fframes", frozen)]
 pub struct PyMedia {
     // Declared before `_directories` so that it drops first: it borrows the directories.
@@ -35,15 +34,12 @@ fn load(
     // drops the provider before the directories.
     let mut provider: DynamicMediaProvider<'static> = unsafe { std::mem::transmute(provider) };
     if mono {
+        // Mix audio down to mono like `include_media_dir!` does.
         for (name, audio) in provider.audio.iter_mut() {
-            if let AudioData::Preloaded(data) = audio
-                && data.is_stereo()
-            {
-                let file = path.join(name);
-                let decoded = PreloadedAudioData::decode_raw_file(None, &file)
-                    .map_err(|e| PyOSError::new_err(format!("media {}: {e:?}", file.display())))?;
-                *audio = AudioData::Preloaded(decoded);
-            }
+            let file = path.join(name);
+            let data = fframes::media::PreloadedAudioData::decode_raw_file(None, &file)
+                .map_err(|e| PyOSError::new_err(format!("media {}: {e:?}", file.display())))?;
+            *audio = fframes::AudioData::Preloaded(data);
         }
     }
     Ok((directory, provider))
@@ -109,7 +105,11 @@ impl PyMedia {
 
     #[getter]
     fn fonts(&self) -> Vec<String> {
-        self.provider.fontdata.iter().map(|f| f.file_name.clone()).collect()
+        self.provider
+            .fontdata
+            .iter()
+            .map(|f| f.file_name.clone())
+            .collect()
     }
 
     fn __repr__(&self) -> String {

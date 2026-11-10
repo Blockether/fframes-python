@@ -1,0 +1,101 @@
+# Each ported example and how to compare it with the Rust reference of ~/fframes.
+# tools/parity.py renders the frames `at` with both and compares the pixels.
+
+[hello-world]
+script = "examples/hello_world.py"
+rust_bin = "hello_world_example_bin"
+example_dir = "hello-world"
+at = "0s,1s,5.5s,12s,29s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[captions]
+script = "examples/captions.py"
+rust_bin = "captions-example"
+example_dir = "captions"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[signal-lab]
+script = "examples/signal_lab.py"
+rust_bin = "signal-lab"
+example_dir = "signal-lab"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[marketing]
+script = "examples/marketing/main.py"
+rust_bin = "marketing-example"
+example_dir = "marketing"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[tiktok]
+script = "examples/tiktok.py"
+rust_bin = "tiktok_example_bin"
+example_dir = "tiktok"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[podcast]
+script = "examples/podcast.py"
+rust_bin = "podcast_example_bin"
+example_dir = "podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[audio-announce]
+script = "examples/audio_announce.py"
+rust_bin = "audio_announce_example_bin"
+example_dir = "audio-announce"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[neon-triangle]
+script = "examples/neon_triangle.py"
+rust_bin = "neon_triangle_example_bin"
+example_dir = "neon-triangle"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[shaders]
+script = "examples/shaders.py"
+rust_bin = "shaders_example_bin"
+example_dir = "shaders"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[anamorphic-video]
+script = "examples/anamorphic_video.py"
+rust_bin = "anamorphic-video"
+example_dir = "anamorphic-video"
+at = "0s,0.4s,0.9s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[teej-podcast]
+script = "examples/teej_podcast.py"
+rust_bin = "teej_podcast_example_bin"
+example_dir = "teej-podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
