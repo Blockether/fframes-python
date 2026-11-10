@@ -105,7 +105,13 @@ impl PyFrame {
         let font = Font::new(family, size, weight, style, stretch)?;
         Ok(self
             .inner
-            .text_fit(ctx.get()?, font.query(), text, max_width, media_api::overflow(overflow))
+            .text_fit(
+                ctx.get()?,
+                font.query(),
+                text,
+                max_width,
+                media_api::overflow(overflow),
+            )
             .map(std::borrow::Cow::into_owned))
     }
 
@@ -135,8 +141,12 @@ impl PyFrame {
             font: Font::new(family, size, weight, style, stretch)?,
             width,
             line_height,
-            x: x.map(media_api::attr_string).transpose()?.unwrap_or_default(),
-            y: y.map(media_api::attr_string).transpose()?.unwrap_or_default(),
+            x: x.map(media_api::attr_string)
+                .transpose()?
+                .unwrap_or_default(),
+            y: y.map(media_api::attr_string)
+                .transpose()?
+                .unwrap_or_default(),
             align: media_api::align(align)?,
             fill,
             dominant_baseline,
@@ -207,12 +217,14 @@ impl PyFrame {
             .get()?
             .get_audio(audio)
             .ok_or_else(|| PyValueError::new_err(format!("no audio {audio:?} in the media")))?;
-        Ok(self.inner.visualize_audio_frame(fframes::VisualizeFrameInput {
-            audio: data,
-            sample_size: media_api::sample_size(sample_size)?,
-            smooth_level,
-            window: media_api::window(window)?,
-        }))
+        Ok(self
+            .inner
+            .visualize_audio_frame(fframes::VisualizeFrameInput {
+                audio: data,
+                sample_size: media_api::sample_size(sample_size)?,
+                smooth_level,
+                window: media_api::window(window)?,
+            }))
     }
 
     /// The subtitle text of `file` at this frame, or `None`.
@@ -250,7 +262,10 @@ impl PyFrame {
             height,
         };
         Ok(PySvgr {
-            nodes: self.inner.play_lottie(ctx.get()?, file, options).as_subtree(),
+            nodes: self
+                .inner
+                .play_lottie(ctx.get()?, file, options)
+                .as_subtree(),
         })
     }
 

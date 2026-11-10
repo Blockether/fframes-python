@@ -92,7 +92,11 @@ impl PyMedia {
 
     #[getter]
     fn fonts(&self) -> Vec<String> {
-        self.provider.fontdata.iter().map(|f| f.file_name.clone()).collect()
+        self.provider
+            .fontdata
+            .iter()
+            .map(|f| f.file_name.clone())
+            .collect()
     }
 
     fn __repr__(&self) -> String {

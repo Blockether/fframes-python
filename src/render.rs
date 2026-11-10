@@ -14,8 +14,11 @@ use crate::media::PyMedia;
 use crate::video::PyVideo;
 
 /// The libx264 settings of the fframes examples.
-const DEFAULT_CODEC_PARAMS: [(&str, &str); 3] =
-    [("crf", "23"), ("preset", "ultrafast"), ("tune", "animation")];
+const DEFAULT_CODEC_PARAMS: [(&str, &str); 3] = [
+    ("crf", "23"),
+    ("preset", "ultrafast"),
+    ("tune", "animation"),
+];
 
 /// Moves a value that is not `Send` into `Python::detach`. The value is used only by the
 /// thread that runs the closure while the caller waits.
@@ -81,7 +84,10 @@ pub fn cli(
     let video = PyVideo::from_py(video)?;
     let params = self::codec_params(codec_params)?;
     let params: Vec<(&str, &str)> = match &params {
-        Some(params) => params.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect(),
+        Some(params) => params
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect(),
         None if encoder.as_deref() == Some("libx264") => DEFAULT_CODEC_PARAMS.to_vec(),
         None => Vec::new(),
     };

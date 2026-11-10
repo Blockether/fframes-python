@@ -80,6 +80,23 @@ def test_python_errors_raise_with_traceback(tmp_path):
         v.timeline(broken)
 
 
+def test_render_frame_errors_name_their_cause(starter, tmp_path):
+    text = starter.read_text().replace(
+        "        return FRAME(",
+        "        if frame.index == 10:\n            raise ValueError('boom at frame 10')\n        return FRAME(",
+        1,
+    )
+    starter.write_text(text)
+    for call in (
+        lambda: v.render(starter, tmp_path / "b.mp4"),
+        lambda: v.frames(starter, "10f", tmp_path),
+    ):
+        with pytest.raises(v.FFramesError) as error:
+            call()
+        assert "ValueError: boom at frame 10" in str(error.value)
+        assert "unsendable" not in str(error.value) and "\x1b" not in str(error.value)
+
+
 def test_missing_fframes_is_explained(starter, monkeypatch, tmp_path):
     bare = tmp_path / "bare.py"
     bare.write_text("import fframes_missing_module\n")

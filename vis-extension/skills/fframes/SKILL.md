@@ -11,6 +11,10 @@ engine renders the frames in parallel and encodes them. Python only fills in val
 
 ## Procedure
 
+The tools run each script in a new process with the first interpreter of: the `python=`
+argument, `$FFRAMES_PYTHON`, the nearest `.venv` above the script, `python3`. That
+interpreter needs the `fframes` package.
+
 1. Start from `await fframes.new("videos/intro.py", title="...", duration=8)`, or from
    an example in the fframes-python repository (`examples/`).
 2. Write the video (rules below).
@@ -61,8 +65,10 @@ if __name__ == "__main__":
 ```
 
 - **Scenes**: instead of `render_frame`, give the video `scenes = [A(), B()]`. Each
-  scene has `duration`, `render_frame(frame, ctx)` and optionally `name`, `audio` and
-  `overlap` (seconds shared with the next scene, or `(previous, next)`). In a scene,
+  scene has `duration`, `render_frame(frame, ctx)` and optionally `name` (default: the
+  class name, used in time specs such as `Intro@1s`), `audio` and `overlap` (seconds
+  shared with the next scene, or `(previous, next)`). A video with scenes can omit
+  `duration`: it is then the sum of the scenes. In a scene,
   `frame.index` and `frame.seconds` count from the scene start; `frame.into_global()`
   gives the video time.
 - **Media**: `ff.Media("media", ...)` loads images, audio, video, subtitles, Lottie and
@@ -90,6 +96,8 @@ if __name__ == "__main__":
   `Easing.spring(mass, stiffness, damping)`, or the names `"ease-out"` etc.
 - `frame.animate(tl)` gives the value at this frame; `frame.animate_loop(tl)` repeats it.
 - `Transform(translate=(x, y), rotate=deg, scale=s, skew=(x, y))`, `Transform.translate(x, y)`.
+  Like SVG, rotation and scale turn around the point (0, 0): use
+  `Transform(rotate=(deg, (cx, cy)))`, or put the shape at (0, 0) in a translated `<g>`.
 
 ## Text, audio, video, shaders
 
@@ -112,8 +120,8 @@ if __name__ == "__main__":
   decoding, no per-pixel Python.
 - Large repeated shapes: put them in the static part of the template; a static subtree
   is built once and shared by every frame.
-- Typical speed: hundreds of 1080p frames per second on the CPU renderer. Compare with
-  `fframes.render(...)` and its `frames_per_second`.
+- Typical speed: hundreds of 1080p frames per second on the CPU renderer. Read
+  `.rendered.frames_per_second` of the `fframes.render(...)` result.
 
 ## CLI
 

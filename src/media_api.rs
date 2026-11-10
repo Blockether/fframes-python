@@ -34,7 +34,9 @@ pub fn font_style(name: &str) -> PyResult<FontStyle> {
         "normal" => Ok(FontStyle::Normal),
         "italic" => Ok(FontStyle::Italic),
         "oblique" => Ok(FontStyle::Oblique),
-        _ => Err(PyValueError::new_err(format!("unknown font style {name:?}"))),
+        _ => Err(PyValueError::new_err(format!(
+            "unknown font style {name:?}"
+        ))),
     }
 }
 
@@ -49,7 +51,11 @@ pub fn font_stretch(name: &str) -> PyResult<FontStretch> {
         "expanded" => FontStretch::Expanded,
         "extra-expanded" => FontStretch::ExtraExpanded,
         "ultra-expanded" => FontStretch::UltraExpanded,
-        _ => return Err(PyValueError::new_err(format!("unknown font stretch {name:?}"))),
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unknown font stretch {name:?}"
+            )));
+        }
     })
 }
 
@@ -63,7 +69,13 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn new(family: String, size: usize, weight: u16, style: &str, stretch: &str) -> PyResult<Self> {
+    pub fn new(
+        family: String,
+        size: usize,
+        weight: u16,
+        style: &str,
+        stretch: &str,
+    ) -> PyResult<Self> {
         Ok(Self {
             family,
             size,
@@ -107,7 +119,9 @@ pub fn align(name: &str) -> PyResult<TextAlign> {
         "left" => Ok(TextAlign::Left),
         "center" => Ok(TextAlign::Center),
         "right" => Ok(TextAlign::Right),
-        _ => Err(PyValueError::new_err(format!("unknown text align {name:?}"))),
+        _ => Err(PyValueError::new_err(format!(
+            "unknown text align {name:?}"
+        ))),
     }
 }
 
@@ -252,7 +266,11 @@ pub fn video_frame<'m>(
 
 /// The output size for `width`/`height` keywords, keeping the aspect of `frame` when only
 /// one is given.
-pub fn resize_to(width: Option<u32>, height: Option<u32>, source: (u32, u32)) -> Option<(u32, u32)> {
+pub fn resize_to(
+    width: Option<u32>,
+    height: Option<u32>,
+    source: (u32, u32),
+) -> Option<(u32, u32)> {
     let (sw, sh) = (source.0.max(1) as f64, source.1.max(1) as f64);
     match (width, height) {
         (None, None) => None,
@@ -312,19 +330,31 @@ impl PyClip {
 
     /// Starts the clip at `seconds` of the timeline.
     fn at(&self, seconds: f32) -> Self {
-        Self { at: seconds, ..self.clone() }
+        Self {
+            at: seconds,
+            ..self.clone()
+        }
     }
 
     fn speed(&self, speed: f32) -> Self {
-        Self { speed, ..self.clone() }
+        Self {
+            speed,
+            ..self.clone()
+        }
     }
 
     fn reverse(&self) -> Self {
-        Self { reverse: true, ..self.clone() }
+        Self {
+            reverse: true,
+            ..self.clone()
+        }
     }
 
     fn looping(&self) -> Self {
-        Self { looping: true, ..self.clone() }
+        Self {
+            looping: true,
+            ..self.clone()
+        }
     }
 
     /// Seconds that the clip lasts on the timeline.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -34,6 +35,7 @@ __all__ = [
     "timeline",
 ]
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
 STARTER = Path(__file__).with_name("starter.py.in")
 
 
@@ -77,14 +79,8 @@ class Rendered:
     width: int
     height: int
     elapsed_seconds: Annotated[float, "Wall time of the render, encoding included"]
-
-    @property
-    def frames(self) -> int:
-        return self.end_frame - self.start_frame
-
-    @property
-    def frames_per_second(self) -> float:
-        return self.frames / self.elapsed_seconds if self.elapsed_seconds > 0 else 0.0
+    frames: Annotated[int, "end_frame - start_frame"]
+    frames_per_second: Annotated[float, "Rendering speed: frames / elapsed_seconds"]
 
     def __str__(self) -> str:
         return (
@@ -159,22 +155,43 @@ def run_json(
         )
     except subprocess.TimeoutExpired as e:
         raise FFramesError(f"{path.name} did not finish in {timeout_s:g} s") from e
-    data: Any = None
-    if done.stdout.strip():
-        try:
-            data = json.loads(done.stdout)
-        except json.JSONDecodeError:
-            data = None
+    data = _parse(done.stdout)
+    cause = _python_traceback(done.stderr)
     if isinstance(data, dict) and "error" in data and len(data) == 1:
-        raise FFramesError(str(data["error"]))
+        error = ANSI.sub("", str(data["error"])).strip()
+        raise FFramesError(f"{cause}\n(fframes: {error})" if cause else error)
     if done.returncode != 0 or data is None:
-        tail = "\n".join(done.stderr.strip().splitlines()[-15:])
+        tail = cause or "\n".join(done.stderr.strip().splitlines()[-15:])
         if "No module named 'fframes'" in done.stderr:
             tail += (
                 f"\nfframes is not installed for {argv[0]}: pip install fframes, or pass python=..."
             )
         raise FFramesError(tail or f"{path.name} exited with {done.returncode} and no JSON")
     return data
+
+
+def _parse(stdout: str) -> Any:
+    """The JSON document of ``stdout``; with progress events before it, its last line."""
+    if not stdout.strip():
+        return None
+    try:
+        return json.loads(stdout)
+    except json.JSONDecodeError:
+        pass
+    for line in reversed(stdout.strip().splitlines()):
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def _python_traceback(stderr: str) -> str:
+    """The last Python traceback in ``stderr``, at most 15 lines from its end."""
+    start = stderr.rfind("Traceback (most recent call last)")
+    if start < 0:
+        return ""
+    return "\n".join(stderr[start:].strip().splitlines()[-15:])
 
 
 def _tuple(value: Any) -> tuple[Any, ...]:
@@ -228,13 +245,17 @@ def render(
     if range:
         command.append(range)
     d = run_json(script, command, **kw)
+    count = d["frames"]["end"] - d["frames"]["start"]
+    elapsed = float(d["elapsed_seconds"])
     return Rendered(
         output=d["output"],
         start_frame=d["frames"]["start"],
         end_frame=d["frames"]["end"],
         width=d["width"],
         height=d["height"],
-        elapsed_seconds=float(d["elapsed_seconds"]),
+        elapsed_seconds=elapsed,
+        frames=count,
+        frames_per_second=count / elapsed if elapsed > 0 else 0.0,
     )
 
 
