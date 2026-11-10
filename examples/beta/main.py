@@ -135,8 +135,12 @@ GPU_SECOND = f32(1.1)
 RENDERING_SPRING = spring(0.6, 300.0, 26.0)
 BASE_FPS = ff.timeline(((GPU_SECOND, after(GPU_SECOND, 0.8)), 60.0, 100.0, LINEAR))
 # f32 in Rust, like the heading x timelines.
-RENDERING_X1 = ff.timeline((0.0, -400.0, 260.0, RENDERING_SPRING), ((0.3, 2.2), 260.0, 310.0, LINEAR))
-RENDERING_X2 = ff.timeline((0.0, 1900.0, 460.0, RENDERING_SPRING), ((0.3, 2.2), 460.0, 410.0, LINEAR))
+RENDERING_X1 = ff.timeline(
+    (0.0, -400.0, 260.0, RENDERING_SPRING), ((0.3, 2.2), 260.0, 310.0, LINEAR)
+)
+RENDERING_X2 = ff.timeline(
+    (0.0, 1900.0, 460.0, RENDERING_SPRING), ((0.3, 2.2), 460.0, 410.0, LINEAR)
+)
 PROGRESS_WIDTH = ff.timeline(
     ((0.0, 0.8), 900.0, 1000.0, LINEAR),
     ((GPU_SECOND, after(GPU_SECOND, 1.0)), 1000.0, 1350.0, LINEAR),
