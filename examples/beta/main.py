@@ -55,8 +55,9 @@ class F64:
 # HeadingScene
 
 HEADING_SPRING = spring(1.0, 100.0, 16.0)
-HEADING_X1 = F64((0.0, -400.0, 260.0, HEADING_SPRING))
-HEADING_X2 = F64((0.0, 1000.0, 660.0, HEADING_SPRING))
+# These two x timelines are f32 in Rust: the `x={...}` holes infer f32, unlike the f64 ones below.
+HEADING_X1 = ff.timeline((0.0, -400.0, 260.0, HEADING_SPRING))
+HEADING_X2 = ff.timeline((0.0, 1000.0, 660.0, HEADING_SPRING))
 HEADING = ff.template("""
 <text font-family="DM Sans" font-weight="700" x="{x1}" y="40%" font-size="150" fill="#000">Welcome to the beta</text>
 <text font-family="DM Sans" font-weight="700" fill="#000" x="{x2}" y="60%" font-size="150">{of}{name}</text>
@@ -73,8 +74,8 @@ class HeadingScene:
 
     def render_frame(self, frame: ff.Frame, ctx: ff.Context) -> ff.Svgr:
         return HEADING(
-            x1=HEADING_X1(frame),
-            x2=HEADING_X2(frame),
+            x1=frame.animate(HEADING_X1),
+            x2=frame.animate(HEADING_X2),
             of="of ",
             name=PLAIN_NAME if frame.index < 100 else BUBBLE_NAME,
         )
