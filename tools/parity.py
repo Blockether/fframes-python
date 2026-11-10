@@ -116,6 +116,51 @@ def max_diff(name: str, x: np.ndarray, y: np.ndarray) -> float | None:
     return float(np.abs(x.astype(np.float64) - y).max()) if x.size else None
 
 
+def video_size(file: Path) -> tuple[int, int]:
+    argv = ["ffprobe", "-v", "error", "-select_streams", "v:0"]
+    argv += ["-show_entries", "stream=width,height", "-of", "csv=p=0", str(file)]
+    done = subprocess.run(argv, check=True, capture_output=True, text=True)
+    width, height = done.stdout.strip().split(",")
+    return int(width), int(height)
+
+
+def video_diff(a: Path, b: Path) -> float:
+    """The largest channel difference of the decoded frames, one frame in memory at a time."""
+    if video_size(a) != video_size(b):
+        raise RuntimeError(f"video size {video_size(a)} vs {video_size(b)}")
+    width, height = video_size(a)
+    frame_bytes = width * height * 3
+    argv = ["ffmpeg", "-v", "error", "-i", "{}", "-an", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+    x, y = (
+        subprocess.Popen([str(f) if v == "{}" else v for v in argv], stdout=subprocess.PIPE)
+        for f in (a, b)
+    )
+    worst, frames = 0, 0
+    try:
+        while True:
+            fx, fy = x.stdout.read(frame_bytes), y.stdout.read(frame_bytes)
+            if len(fx) != len(fy):
+                raise RuntimeError(f"video: {frames} frames, then one file ends")
+            if not fx:
+                break
+            worst = max(
+                worst,
+                int(
+                    np.abs(
+                        np.frombuffer(fx, np.uint8).astype(np.int16) - np.frombuffer(fy, np.uint8)
+                    ).max()
+                ),
+            )
+            frames += 1
+    finally:
+        for p in (x, y):
+            p.kill()
+            p.wait()
+    if not frames:
+        raise RuntimeError("video: no frames")
+    return float(worst)
+
+
 def check_render(e: Example, range_: str) -> dict[str, object]:
     """Renders `range_` with both implementations; the largest video and audio differences."""
     with tempfile.TemporaryDirectory(prefix=f"parity-{e.name}-") as tmp:
@@ -123,13 +168,11 @@ def check_render(e: Example, range_: str) -> dict[str, object]:
         common = [*e.args, "--renderer", e.renderer, "render", range_]
         render([str(e.rust), *common], e.cwd, out / "rust.mp4")
         render([sys.executable, str(REPO / e.script), *common], REPO, out / "py.mp4")
-        video = ("-an", "-f", "rawvideo", "-pix_fmt", "rgb24")
         audio = ("-vn", "-f", "f32le", "-ac", "2", "-ar", "48000")
         a, b = out / "rust.mp4", out / "py.mp4"
         if streams(a) != streams(b):
             raise RuntimeError(f"streams {streams(a)} vs {streams(b)}")
-        x, y = decode(a, *video, dtype=np.uint8), decode(b, *video, dtype=np.uint8)
-        result = {"video": max_diff("video", x, y), "audio": None}
+        result = {"video": video_diff(a, b), "audio": None}
         if "audio" in streams(a):
             x, y = decode(a, *audio, dtype=np.float32), decode(b, *audio, dtype=np.float32)
             result["audio"] = max_diff("audio", x, y)

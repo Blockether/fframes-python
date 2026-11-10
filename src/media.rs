@@ -3,10 +3,12 @@
 use fframes::{DynamicMediaProvider, MediaDirectory};
 use pyo3::exceptions::{PyOSError, PyTypeError};
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 /// The media of one or more folders. A name in an earlier folder wins.
 /// Audio keeps stereo; `mono=True` mixes it down like Rust `include_media_dir!`. A list of bools
 /// sets `mono` for each folder, like a `CombinedMediaProvider` of both kinds.
+/// `audio` adds generated audio: `{name: samples or (left, right)}` at `sample_rate`.
 /// Pass it as `media=` to `fframes.cli`.
 #[pyclass(name = "Media", module = "fframes", frozen)]
 pub struct PyMedia {
@@ -56,16 +58,30 @@ fn load(
 #[pymethods]
 impl PyMedia {
     #[new]
-    #[pyo3(signature = (*folders, mono = Mono::All(false)))]
-    fn new(py: Python<'_>, folders: Vec<std::path::PathBuf>, mono: Mono) -> PyResult<Self> {
-        if folders.is_empty() {
-            return Err(PyTypeError::new_err("Media needs at least one folder"));
+    #[pyo3(signature = (*folders, mono = Mono::All(false), audio = None, sample_rate = 48_000))]
+    fn new(
+        py: Python<'_>,
+        folders: Vec<std::path::PathBuf>,
+        mono: Mono,
+        audio: Option<&Bound<'_, PyDict>>,
+        sample_rate: u32,
+    ) -> PyResult<Self> {
+        if folders.is_empty() && audio.is_none() {
+            return Err(PyTypeError::new_err("Media needs a folder or audio"));
         }
         let mono = match mono {
             Mono::All(mono) => vec![mono; folders.len()],
             Mono::Each(each) if each.len() == folders.len() => each,
             Mono::Each(_) => return Err(PyTypeError::new_err("mono needs one bool for each folder")),
         };
+        let generated = audio
+            .into_iter()
+            .flat_map(|audio| audio.iter())
+            .map(|(name, samples)| {
+                let data = crate::synth::audio_data(&samples, sample_rate)?;
+                Ok((name.extract::<String>()?, fframes::AudioData::Preloaded(data)))
+            })
+            .collect::<PyResult<Vec<_>>>()?;
         py.detach(|| {
             let mut merged = DynamicMediaProvider::default();
             let mut directories = Vec::with_capacity(folders.len());
@@ -82,6 +98,7 @@ impl PyMedia {
                 merged.fontdata = fonts;
                 directories.push(directory);
             }
+            merged.audio.extend(generated);
             Ok(Self {
                 provider: merged,
                 _directories: directories,

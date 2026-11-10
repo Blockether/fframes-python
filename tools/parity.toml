@@ -131,3 +131,21 @@ at = "1s,2s,4.5s,10s,13s,15s,16.5s,18s,22.5s,24.5s,26.5s,29s,31s,31.98s"
 args = []
 renderer = "cpu"
 max_diff = 0
+
+[lottie]
+script = "examples/lottie/main.py"
+rust_bin = "lottie"
+example_dir = "lottie"
+at = "0s,2s,5.5s,9s,13s,17.98s"
+args = []
+renderer = "cpu"
+max_diff = 0
+# Rust picks the default song from HashMap key order, so the song is given.
+[pixel-memory]
+script = "examples/pixel_memory/main.py"
+rust_bin = "pixel_memory_example_bin"
+example_dir = "pixel-memory"
+at = "0.5s,10s,40s,80s,131.9s"
+args = ["--song", "revenge.mp3"]
+renderer = "cpu"
+max_diff = 0
