@@ -1,0 +1,61 @@
+"""Python bindings for fframes: render videos from SVG, fast.
+
+A video is any object with ``width``, ``height``, ``fps`` (default 30), ``duration``
+(seconds, a ``Duration`` or ``None`` for automatic) and a ``render_frame(frame, ctx)``
+method that returns an ``Svgr`` tree. Instead of ``render_frame`` a video can have
+``scenes``. Run it with ``fframes.cli(video)``.
+"""
+
+from fframes._fframes import (
+    AudioTrack,
+    Clip,
+    Color,
+    Context,
+    Duration,
+    Easing,
+    Frame,
+    Image,
+    Media,
+    Path,
+    Shader,
+    Svgr,
+    Template,
+    TextLayout,
+    TextLine,
+    Timeline,
+    Timestamp,
+    Transform,
+    VideoFrame,
+    center_spectrum_low_frequencies,
+    cli,
+    svgr,
+    template,
+    timeline,
+)
+
+__all__ = [
+    "AudioTrack",
+    "Clip",
+    "Color",
+    "Context",
+    "Duration",
+    "Easing",
+    "Frame",
+    "Image",
+    "Media",
+    "Path",
+    "Shader",
+    "Svgr",
+    "Template",
+    "TextLayout",
+    "TextLine",
+    "Timeline",
+    "Timestamp",
+    "Transform",
+    "VideoFrame",
+    "center_spectrum_low_frequencies",
+    "cli",
+    "svgr",
+    "template",
+    "timeline",
+]

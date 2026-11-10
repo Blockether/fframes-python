@@ -1,0 +1,32 @@
+[package]
+name = "fframes-python"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Python bindings for fframes, the Rust and SVG video framework"
+repository = "https://github.com/Blockether/fframes-python"
+publish = false
+
+[lib]
+name = "_fframes"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["cli", "compile-time-svgtree", "captions", "lottie", "3d"] }
+simplecss = "0.2.2"
+clap = { version = "4.5", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["metal", "cli"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["vulkan", "cli"] }
+
+# FFmpeg codecs, portable so cached source builds work across CPUs.
+[target.'cfg(not(windows))'.dependencies]
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["h264", "h265", "vpx", "libav-agree-gpl", "build-portable"] }
+
+[profile.release]
+codegen-units = 16
+lto = "thin"

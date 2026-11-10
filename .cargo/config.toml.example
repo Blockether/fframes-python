@@ -1,0 +1,4 @@
+# Copy to .cargo/config.toml to build against a local fframes checkout.
+[patch."https://github.com/Blockether/fframes"]
+fframes = { path = "../fframes/fframes" }
+fframes_skia_renderer = { path = "../fframes/fframes-skia-renderer" }

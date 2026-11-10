@@ -1,0 +1,13 @@
+/target
+/.venv
+__pycache__/
+*.so
+*.pyd
+/.cargo/config.toml
+/dist
+/out
+*.mp4
+*.webm
+*.png
+!docs/**/*.png
+.pytest_cache/

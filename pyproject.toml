@@ -1,0 +1,35 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "fframes"
+version = "0.1.0"
+description = "Python bindings for fframes: render videos from SVG, fast"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Blockether" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Multimedia :: Video",
+]
+
+[project.urls]
+Homepage = "https://github.com/Blockether/fframes-python"
+Upstream = "https://fframes.studio"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.maturin]
+module-name = "fframes._fframes"
+python-source = "python"
+features = ["pyo3/extension-module"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
