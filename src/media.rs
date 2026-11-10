@@ -5,6 +5,7 @@ use pyo3::exceptions::{PyOSError, PyTypeError};
 use pyo3::prelude::*;
 
 /// The media of one or more folders. A name in an earlier folder wins.
+/// Audio keeps stereo; `mono=True` mixes it down like Rust `include_media_dir!`.
 /// Pass it as `media=` to `fframes.cli`.
 #[pyclass(name = "Media", module = "fframes", frozen)]
 pub struct PyMedia {
@@ -20,7 +21,10 @@ impl PyMedia {
     }
 }
 
-fn load(path: &std::path::Path) -> PyResult<(Box<MediaDirectory>, DynamicMediaProvider<'static>)> {
+fn load(
+    path: &std::path::Path,
+    mono: bool,
+) -> PyResult<(Box<MediaDirectory>, DynamicMediaProvider<'static>)> {
     let error = |e: fframes::FFramesRendererError| {
         PyOSError::new_err(format!("media {}: {e}", path.display()))
     };
@@ -28,15 +32,24 @@ fn load(path: &std::path::Path) -> PyResult<(Box<MediaDirectory>, DynamicMediaPr
     let provider = directory.process_media_source().map_err(error)?;
     // SAFETY: `provider` borrows the boxed directory. The box does not move, and `PyMedia`
     // drops the provider before the directories.
-    let provider: DynamicMediaProvider<'static> = unsafe { std::mem::transmute(provider) };
+    let mut provider: DynamicMediaProvider<'static> = unsafe { std::mem::transmute(provider) };
+    if mono {
+        // Mix audio down to mono like `include_media_dir!` does.
+        for (name, audio) in provider.audio.iter_mut() {
+            let file = path.join(name);
+            let data = fframes::media::PreloadedAudioData::decode_raw_file(None, &file)
+                .map_err(|e| PyOSError::new_err(format!("media {}: {e:?}", file.display())))?;
+            *audio = fframes::AudioData::Preloaded(data);
+        }
+    }
     Ok((directory, provider))
 }
 
 #[pymethods]
 impl PyMedia {
     #[new]
-    #[pyo3(signature = (*folders))]
-    fn new(py: Python<'_>, folders: Vec<std::path::PathBuf>) -> PyResult<Self> {
+    #[pyo3(signature = (*folders, mono = false))]
+    fn new(py: Python<'_>, folders: Vec<std::path::PathBuf>, mono: bool) -> PyResult<Self> {
         if folders.is_empty() {
             return Err(PyTypeError::new_err("Media needs at least one folder"));
         }
@@ -45,7 +58,7 @@ impl PyMedia {
             let mut directories = Vec::with_capacity(folders.len());
             // Later folders first, so that an earlier folder overwrites a name.
             for folder in folders.iter().rev() {
-                let (directory, provider) = load(folder)?;
+                let (directory, provider) = load(folder, mono)?;
                 merged.audio.extend(provider.audio);
                 merged.images.extend(provider.images);
                 merged.subtitles.extend(provider.subtitles);

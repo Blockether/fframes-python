@@ -334,7 +334,8 @@ class Media:
     subtitles: list[str]
     lottie: list[str]
     fonts: list[str]
-    def __init__(self, *folders: str) -> None: ...
+    def __init__(self, *folders: str, mono: bool = False) -> None:
+        """`mono=True` mixes audio down to mono, like Rust `include_media_dir!`."""
 
 def cli(
     video: Any,
