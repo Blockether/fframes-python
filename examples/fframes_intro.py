@@ -78,16 +78,12 @@ def round_u(x) -> int:
     return usize(math.floor(float(x) + 0.5))
 
 
-def sin32(x):
-    return F(_fframes_intro_ui._libm.sinf(F(x)))
-
-
-def cos32(x):
-    return F(_fframes_intro_ui._libm.cosf(F(x)))
+sin_cos32 = _fframes_intro_ui.sin_cos32
 
 
 def powf(x, y):
-    return F(float(x) ** float(y))
+    """Rust `f32::powf`."""
+    return F(_fframes_intro_ui._libm.powf(F(x), F(y)))
 
 
 def f(x) -> float:
@@ -1538,7 +1534,7 @@ def ring(lb, lit):
     nodes = []
     for i, name in enumerate(AGENT_NODES):
         a = -FRAC_PI_2 + F(i) / F(len(AGENT_NODES)) * TAU
-        ca, sa = cos32(a), sin32(a)
+        sa, ca = sin_cos32(a)
         x, y = RING_X + ca * RING_R, RING_Y + sa * RING_R
         at = F(2.5) + F(i) * F(0.4)
         s = snap(lb - at)
@@ -1564,10 +1560,11 @@ def ring(lb, lit):
     if lb > 5.0:
         for k in range(10):
             a = -FRAC_PI_2 + ((lb - F(5.0)) / F(8.0) - F(k) * F(0.008)) * TAU
+            sa, ca = sin_cos32(a)
             comet.append(
                 COMET(
-                    x=f(RING_X + cos32(a) * RING_R),
-                    y=f(RING_Y + sin32(a) * RING_R),
+                    x=f(RING_X + ca * RING_R),
+                    y=f(RING_Y + sa * RING_R),
                     r=f(F(7.0) - F(k) * F(0.5)),
                     o=f(F(1.0) - F(k) / F(10.0)),
                 )

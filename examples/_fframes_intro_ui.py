@@ -64,12 +64,12 @@ def lerp(a, b, t):
 
 def expo_out(t):
     t = clamp01(t)
-    return F(1.0) if t >= 1.0 else F(1.0) - F(2.0 ** float(F(-10.0) * t))
+    return F(1.0) if t >= 1.0 else F(1.0) - F(_libm.powf(2.0, F(-10.0) * t))
 
 
 def expo_in(t):
     t = clamp01(t)
-    return F(0.0) if t <= 0.0 else F(2.0 ** float(F(10.0) * t - F(10.0)))
+    return F(0.0) if t <= 0.0 else F(_libm.powf(2.0, F(10.0) * t - F(10.0)))
 
 
 def powi3(x):
@@ -90,7 +90,8 @@ def quart_out(t):
 
 
 def exp32(x):
-    return F(math.exp(float(x)))
+    """Rust `f32::exp`."""
+    return F(_libm.expf(F(x)))
 
 
 def spring(t, stiffness, damping):
@@ -101,8 +102,7 @@ def spring(t, stiffness, damping):
     zeta = F(damping) / (F(2.0) * w0)
     if zeta < 1.0:
         wd = w0 * F(math.sqrt(float(F(1.0) - zeta * zeta)))
-        a = F(math.cos(float(wd * t)))
-        b = F(math.sin(float(wd * t)))
+        b, a = sin_cos32(wd * t)
         return F(1.0) - exp32(-zeta * w0 * t) * (a + zeta * w0 / wd * b)
     return F(1.0) - (F(1.0) + w0 * t) * exp32(-w0 * t)
 
@@ -120,13 +120,14 @@ def pulse(beat, sharpness):
     return exp32(-(beat - F(math.floor(beat))) * F(sharpness))
 
 
-# Rust f32::sin is the C library sinf; for large arguments it can differ by one ulp from a
-# rounded double sin, which the 43758 factor of the hash makes visible.
+# Rust f32::sin, exp and powf are the C library sinf, expf and powf; they can differ by one ulp
+# from a rounded double result, which the 43758 factor of the hash makes visible.
 _libm = ctypes.CDLL(None)
-_libm.sinf.argtypes = [ctypes.c_float]
-_libm.sinf.restype = ctypes.c_float
-_libm.cosf.argtypes = [ctypes.c_float]
-_libm.cosf.restype = ctypes.c_float
+for _name in ("sinf", "cosf", "expf"):
+    getattr(_libm, _name).argtypes = [ctypes.c_float]
+    getattr(_libm, _name).restype = ctypes.c_float
+_libm.powf.argtypes = [ctypes.c_float, ctypes.c_float]
+_libm.powf.restype = ctypes.c_float
 sinf = np.frompyfunc(_libm.sinf, 1, 1)
 
 
@@ -138,6 +139,13 @@ def sin32(x):
 def cos32(x):
     """Rust `f32::cos`."""
     return F(_libm.cosf(F(x)))
+
+
+def sin_cos32(x):
+    """Rust `f32::sin_cos`, also a `sin` and a `cos` of one value in one expression: the compiler
+    joins them into one `sincos` call, which is not always `sin32` and `cos32`."""
+    s, c = np.frombuffer(ff.f32_math("sin_cos", float(F(x))), "<f4")
+    return s, c
 
 
 def hash32(n):
