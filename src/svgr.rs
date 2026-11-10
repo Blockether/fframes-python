@@ -623,8 +623,8 @@ fn pieces_to_xml(pieces: &[Piece<'_>]) -> PyResult<String> {
                 while i < bytes.len() {
                     let b = bytes[i];
                     state = match state {
-                        State::Content if text[i..].starts_with("<!--") => State::Comment,
-                        State::Comment if text[i..].starts_with("-->") => State::Content,
+                        State::Content if bytes[i..].starts_with(b"<!--") => State::Comment,
+                        State::Comment if bytes[i..].starts_with(b"-->") => State::Content,
                         State::Content if b == b'<' => State::Tag,
                         State::Tag if b == b'>' => State::Content,
                         State::Tag if b == b'=' => State::AfterEq,
