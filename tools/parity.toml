@@ -1,0 +1,11 @@
+# Each ported example and how to compare it with the Rust reference of ~/fframes.
+# tools/parity.py renders the frames `at` with both and compares the pixels.
+
+[hello-world]
+script = "examples/hello_world.py"
+rust_bin = "hello_world_example_bin"
+example_dir = "hello-world"
+at = "0s,1s,5.5s,12s,29s"
+args = []
+renderer = "cpu"
+max_diff = 0

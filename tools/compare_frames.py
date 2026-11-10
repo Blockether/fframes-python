@@ -1,6 +1,8 @@
-import sys, numpy as np
-from PIL import Image
+import sys
 from pathlib import Path
+
+import numpy as np
+from PIL import Image
 
 a, b = Path(sys.argv[1]), Path(sys.argv[2])
 fa = sorted(a.glob("*.png"))
