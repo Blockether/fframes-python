@@ -260,6 +260,13 @@ impl PyFrame {
         })
     }
 
+    /// This frame with scene index `index`; its time and shader clock follow the index.
+    fn with_index(&self, index: usize) -> Self {
+        let mut inner = self.inner.clone();
+        inner.index = index;
+        Self::new(inner)
+    }
+
     /// This frame with the index of the whole video.
     #[allow(clippy::wrong_self_convention)]
     fn into_global(&self) -> Self {
