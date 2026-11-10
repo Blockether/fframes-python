@@ -342,7 +342,7 @@ class Media:
     subtitles: list[str]
     lottie: list[str]
     fonts: list[str]
-    def __init__(self, *folders: str) -> None: ...
+    def __init__(self, *folders: str, mono: bool = False) -> None: ...
 
 def cli(
     video: Any,
