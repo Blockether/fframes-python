@@ -843,8 +843,9 @@ fn parse_children(node: &roxmltree::Node<'_, '_>) -> PyResult<Vec<TChild>> {
 }
 
 /// Collapses XML whitespace like SVG `xml:space="default"`: runs of whitespace become one space,
-/// the first text of an element loses its leading space, the last its trailing space, and pure
-/// indentation (whitespace with a line break) disappears.
+/// the first text of a `<text>` loses its leading space, the last its trailing space, and pure
+/// indentation (whitespace with a line break) disappears. A `<tspan>` keeps its edge spaces, as
+/// in `<tspan>Warsaw </tspan><tspan>2025</tspan>`.
 fn normalize_text(text: &str, is_first: bool, is_last: bool) -> Option<String> {
     if text.trim().is_empty() && text.contains('\n') {
         return None;
@@ -882,7 +883,10 @@ fn parse_text_children(node: &roxmltree::Node<'_, '_>, parent: EId) -> PyResult<
     for (index, child) in all.iter().enumerate() {
         if child.is_text() {
             let text = child.text().unwrap_or_default();
-            if let Some(text) = normalize_text(text, index == 0, index + 1 == all.len()) {
+            let is_text = parent == EId::Text;
+            let is_first = is_text && index == 0;
+            let is_last = is_text && index + 1 == all.len();
+            if let Some(text) = normalize_text(text, is_first, is_last) {
                 children.push(TChild::Node(TNode {
                     kind: NestedNodeKind::Text(StringStorage::new_owned(text)),
                     attrs: Vec::new(),
