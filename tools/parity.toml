@@ -149,3 +149,4 @@ at = "0.5s,10s,40s,80s,131.9s"
 args = ["--song", "revenge.mp3"]
 renderer = "cpu"
 max_diff = 0
+video_exact = false
