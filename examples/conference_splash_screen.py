@@ -1,12 +1,19 @@
 """Port of fframes/examples/conference-splash-screen.
 
 python examples/conference_splash_screen.py render -o talk.mp4 [--talk 0|NAME]
+python examples/conference_splash_screen.py render-all
+
+`render-all` is `src/bin/render_all.rs`: it writes the video, a preview image and a description
+of every talk into `output/`.
 """
 
 import argparse
 import json
 import re
+import shutil
 import sys
+import tempfile
+from pathlib import Path
 
 import _media
 import fframes as ff
@@ -215,24 +222,65 @@ def find_talk(talks: list[dict], query: str) -> dict:
     raise SystemExit(f'error: no talk by a speaker matching "{query}"')
 
 
+OPTIONS = {
+    "tmp_dir": "test_video",
+    "encoder": "libx265",
+    "video_options": {"qmin": 0, "qmax": 69, "qcompress": 0.6, "max_qdiff": 4, "gop_size": 250},
+    "concurrency": 1,
+    "cache_capacity": 200,
+}
+PREVIEW_FRAME = 145
+
+
+def description(talk: dict) -> str:
+    links = talk.get("social_links")
+    return (
+        f"{talk['speaker_name']}'s FunOCaml 2024 talk recording!\n\n"
+        f"Overview by {talk['speaker_name'].split(' ')[0]}:\n{talk['abstract']}\n"
+        f"{'' if links is None else f'Find speaker: {links}'}\n\n"
+        "Connect with us\nWebsite: https://fun-ocaml.com/\nTwitter: https://x.com/FunOCaml"
+    )
+
+
+def render_all(talks: list[dict], media: ff.Media) -> int:
+    out = Path("output")
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir()
+    print(f"Rendering {len(talks)} talks...", flush=True)
+    for index, talk in enumerate(talks):
+        name = f"{talk['speaker_name'].replace(' ', '_')}_{index}"
+        video = ConferenceVideo(talk)
+        if ff.cli(
+            video, [sys.argv[0], "render", "-o", str(out / f"{name}.mp4")], media=media, **OPTIONS
+        ):
+            return 1
+        with tempfile.TemporaryDirectory() as frames:
+            ff.cli(
+                video,
+                [sys.argv[0], "frame", f"{PREVIEW_FRAME}f", "-o", frames],
+                media=media,
+                **OPTIONS,
+            )
+            png = Path(frames) / f"{PREVIEW_FRAME}f.png"
+            if not png.exists():
+                print(f"error: no preview image for {name}", file=sys.stderr)
+                return 1
+            shutil.move(png, out / f"{name}_preview.png")
+        (out / f"{name}_description.txt").write_text(description(talk))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument(
         "--talk", default="0", help="An index into sessions.json or part of the speaker's name."
     )
     args, rest = parser.parse_known_args()
-    talk = find_talk(load_talks(), args.talk)
     media = ff.Media(_media.folder(EXAMPLE), _media.folder(EXAMPLE, "dynamic_media"))
-    return ff.cli(
-        ConferenceVideo(talk),
-        [sys.argv[0], *rest],
-        media=media,
-        tmp_dir="test_video",
-        encoder="libx265",
-        video_options={"qmin": 0, "qmax": 69, "qcompress": 0.6, "max_qdiff": 4, "gop_size": 250},
-        concurrency=1,
-        cache_capacity=200,
-    )
+    if rest[:1] == ["render-all"]:
+        return render_all(load_talks(), media)
+    talk = find_talk(load_talks(), args.talk)
+    return ff.cli(ConferenceVideo(talk), [sys.argv[0], *rest], media=media, **OPTIONS)
 
 
 if __name__ == "__main__":
