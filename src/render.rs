@@ -40,7 +40,9 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
 /// `argv` defaults to `sys.argv`. The encoder settings apply to `render`; the defaults are
 /// the ones of the fframes examples (libx264, crf 23, preset ultrafast, tune animation).
 /// `master_gain_db` and `limiter` (the peak ceiling in dBFS, `None` for none) set the master bus.
-/// `cache_capacity` sets the static subtree cache of the default CPU backend.
+/// `cache_capacity` sets the static subtree cache of the default CPU backend. `renderer="gpu"`
+/// renders on Skia GPU without `--renderer`; `gpu_contexts` (a number or "max") and
+/// `buffer_queue_size` configure its pipeline.
 #[pyfunction]
 #[pyo3(signature = (
     video,
@@ -58,6 +60,9 @@ fn codec_params(params: Option<&Bound<'_, PyDict>>) -> PyResult<Option<Vec<(Stri
     qmin = 15,
     qmax = 60,
     cache_capacity = None,
+    renderer = None,
+    gpu_contexts = None,
+    buffer_queue_size = 10,
 ))]
 #[allow(clippy::too_many_arguments)]
 pub fn cli(
@@ -76,7 +81,35 @@ pub fn cli(
     qmin: i32,
     qmax: i32,
     cache_capacity: Option<usize>,
+    renderer: Option<String>,
+    gpu_contexts: Option<&Bound<'_, PyAny>>,
+    buffer_queue_size: usize,
 ) -> PyResult<i32> {
+    use fframes_skia_renderer::{SkiaPipelineConcurrencyPolicy, SkiaPipelineConfig};
+    let concurrency_policy = match gpu_contexts {
+        None => SkiaPipelineConcurrencyPolicy::OnePipeline,
+        Some(v) if v.extract::<String>().is_ok_and(|s| s == "max") => {
+            SkiaPipelineConcurrencyPolicy::MaxPerformance
+        }
+        Some(v) => SkiaPipelineConcurrencyPolicy::Concurrency(v.extract()?),
+    };
+    let pipeline = SkiaPipelineConfig {
+        buffer_queue_size,
+        concurrency_policy,
+        ..Default::default()
+    };
+    let skia = match renderer.as_deref() {
+        None => SkiaRenderers {
+            pipeline,
+            ..Default::default()
+        },
+        Some("gpu") => SkiaRenderers::gpu(pipeline),
+        Some(other) => {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "renderer is None or \"gpu\", not {other:?}"
+            )));
+        }
+    };
     let argv = match argv {
         Some(argv) => argv,
         None => py.import("sys")?.getattr("argv")?.extract()?,
@@ -125,7 +158,7 @@ pub fn cli(
     };
     let mut runner = fframes::cli::new(&video, options)
         .args(args)
-        .renderers(SkiaRenderers::default());
+        .renderers(skia);
     if let Some(cache_capacity) = cache_capacity {
         runner = runner.backend(fframes::cpu::CpuRenderingBackend {
             cache_capacity,

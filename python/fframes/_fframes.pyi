@@ -457,4 +457,7 @@ def cli(
     qmin: int = 15,
     qmax: int = 60,
     cache_capacity: int | None = None,
+    renderer: Literal["gpu"] | None = None,
+    gpu_contexts: int | Literal["max"] | None = None,
+    buffer_queue_size: int = 10,
 ) -> int: ...

@@ -1005,6 +1005,9 @@ def main() -> int:
         qmin=0,
         qmax=69,
         cache_capacity=300,
+        renderer="gpu",
+        gpu_contexts="max",
+        buffer_queue_size=20,
     )
 
 
