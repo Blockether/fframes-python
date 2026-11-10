@@ -15,7 +15,7 @@ use fframes::three_d as td;
 use fframes::three_d::{Mat3, Mat4, Quat, Vec2, Vec3, Vec4};
 use pyo3::exceptions::{PyIndexError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBytes, PyFloat, PyInt, PyString, PyTuple};
+use pyo3::types::{PyBytes, PyInt, PyString, PyTuple};
 
 use crate::values::PyImage;
 
@@ -142,6 +142,13 @@ f32_fns! {
     powf(x, y) => x.powf(y);
 }
 
+/// `(sin, cos)` of `x` in one call, as Rust code that needs both: on macOS LLVM joins them in
+/// `__sincosf_stret`, which can differ from `sin` and `cos` in the last bit.
+#[pyfunction]
+pub fn sin_cos(x: f32) -> (f32, f32) {
+    x.sin_cos()
+}
+
 // ---------------------------------------------------------------- math
 
 /// A 3D vector of f32, glam `Vec3`. Arguments also take `(x, y, z)` tuples.
@@ -191,8 +198,9 @@ impl PyVec3 {
     }
     /// `v * number` or `v * other` (per component).
     fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if other.is_instance_of::<PyFloat>() || other.is_instance_of::<PyInt>() {
-            return Ok(Self(self.0 * other.extract::<f32>()?));
+        // Any number, also a NumPy float32.
+        if let Ok(k) = other.extract::<f32>() {
+            return Ok(Self(self.0 * k));
         }
         Ok(Self(self.0 * vec3(other)?))
     }
@@ -536,8 +544,8 @@ impl PyRgb {
         Ok(Self(self.0.lerp(rgb(other)?, t)))
     }
     fn __mul__(&self, other: &Bound<'_, PyAny>) -> PyResult<Self> {
-        if other.is_instance_of::<PyFloat>() || other.is_instance_of::<PyInt>() {
-            return Ok(Self(self.0 * other.extract::<f32>()?));
+        if let Ok(k) = other.extract::<f32>() {
+            return Ok(Self(self.0 * k));
         }
         Ok(Self(self.0 * rgb(other)?))
     }
@@ -847,6 +855,23 @@ impl PyGeometry {
             g
         }))
     }
+    /// The geometry with one UV per vertex: float32 bytes, 2 per vertex.
+    fn with_uvs(&self, uvs: &[u8]) -> PyResult<Self> {
+        let values = f32_bytes(uvs, "with_uvs")?;
+        if values.len() != self.0.positions.len() * 2 {
+            return Err(PyValueError::new_err("with_uvs: 2 floats per vertex"));
+        }
+        let uvs = values
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|c| Vec2::from_array(*c))
+            .collect();
+        Ok(self.map(|mut g| {
+            g.uvs = uvs;
+            g
+        }))
+    }
     /// The vertex positions as float32 bytes, 3 per vertex.
     fn positions(&self, py: Python<'_>) -> Py<PyBytes> {
         let mut out = Vec::with_capacity(self.0.positions.len() * 12);
@@ -1029,6 +1054,14 @@ impl PyMaterial {
     fn ao_map(&self, texture: &PyTexture) -> Self {
         let texture = Arc::clone(&texture.0);
         self.with(|m| m.ao_map(texture))
+    }
+    /// The glTF metal-roughness map: roughness in green, metalness in blue.
+    fn metal_rough_map(&self, texture: &PyTexture) -> Self {
+        let texture = Arc::clone(&texture.0);
+        self.with(|mut m| {
+            m.metal_rough_map = Some(texture);
+            m
+        })
     }
 }
 
@@ -1381,9 +1414,13 @@ impl PyScene {
         Ok(())
     }
     /// A mirror floor at y = 0 for materials with `reflection`.
-    #[pyo3(signature = (scale = 1.0))]
-    fn set_reflector_floor(&mut self, scale: f32) {
-        self.0.reflector = Some(td::Reflector::floor().scale(scale));
+    #[pyo3(signature = (scale = None))]
+    fn set_reflector_floor(&mut self, scale: Option<f32>) {
+        let floor = td::Reflector::floor();
+        self.0.reflector = Some(match scale {
+            Some(scale) => floor.scale(scale),
+            None => floor,
+        });
     }
     fn set_position(&mut self, id: u32, position: &Bound<'_, PyAny>) -> PyResult<()> {
         self.node(id)?.position = vec3(position)?;
@@ -1536,8 +1573,9 @@ impl PyCamera {
     ) -> PyResult<Self> {
         Ok(Self(self.0.orbit(vec3(target)?, distance, azimuth, elevation)))
     }
+    /// The position of the camera.
     #[getter]
-    fn get_position(&self) -> PyVec3 {
+    fn eye(&self) -> PyVec3 {
         PyVec3(self.0.position)
     }
     #[getter]
@@ -1707,6 +1745,7 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     for f in [
         wrap_pyfunction!(sin, &sub)?,
         wrap_pyfunction!(cos, &sub)?,
+        wrap_pyfunction!(sin_cos, &sub)?,
         wrap_pyfunction!(tan, &sub)?,
         wrap_pyfunction!(asin, &sub)?,
         wrap_pyfunction!(acos, &sub)?,
