@@ -143,6 +143,95 @@ pub fn biquad<'py>(
     Ok(to_bytes(py, &output))
 }
 
+/// One value or one per sample: a number or a buffer.
+fn values_or_one(obj: &Bound<'_, PyAny>) -> PyResult<Vec<f32>> {
+    match obj.extract::<f32>() {
+        Ok(value) => Ok(vec![value]),
+        Err(_) => samples(obj),
+    }
+}
+
+/// `n` samples of a saw oscillator without aliasing (polyBLEP) from `phase` (0..1), in f32
+/// like the Rust examples. `freq` is one frequency in Hz or one per sample.
+#[pyfunction]
+#[pyo3(signature = (freq, n, phase = 0.0, sample_rate = 48_000.0))]
+pub fn saw<'py>(
+    py: Python<'py>,
+    freq: &Bound<'py, PyAny>,
+    n: usize,
+    phase: f32,
+    sample_rate: f32,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let freqs = values_or_one(freq)?;
+    if freqs.len() != 1 && freqs.len() != n {
+        return Err(PyValueError::new_err("freq needs one value or n values"));
+    }
+    let output = py.detach(|| {
+        let mut phase = phase;
+        (0..n)
+            .map(|i| {
+                let dt = freqs[if freqs.len() == 1 { 0 } else { i }] / sample_rate;
+                phase += dt;
+                if phase >= 1.0 {
+                    phase -= 1.0;
+                }
+                let t = phase;
+                let blep = if t < dt {
+                    let t = t / dt;
+                    t + t - t * t - 1.0
+                } else if t > 1.0 - dt {
+                    let t = (t - 1.0) / dt;
+                    t * t + t + t + 1.0
+                } else {
+                    0.0
+                };
+                2.0 * t - 1.0 - blep
+            })
+            .collect::<Vec<f32>>()
+    });
+    Ok(to_bytes(py, &output))
+}
+
+/// Rust `f32` math over buffers, bit for bit the same as `f32::sin` and the others:
+/// `op` is "sin", "cos", "exp", "tanh" (of `x`) or "powf" (`x` to the power `y`).
+/// `x` and `y` are numbers or buffers of one length. Returns `bytes` of little-endian f32.
+#[pyfunction]
+#[pyo3(signature = (op, x, y = None))]
+pub fn f32_math<'py>(
+    py: Python<'py>,
+    op: &str,
+    x: &Bound<'py, PyAny>,
+    y: Option<&Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let x = values_or_one(x)?;
+    let unary: Option<fn(f32) -> f32> = match op {
+        "sin" => Some(f32::sin),
+        "cos" => Some(f32::cos),
+        "exp" => Some(f32::exp),
+        "tanh" => Some(f32::tanh),
+        "powf" => None,
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "unknown op {op:?}: use sin, cos, exp, tanh or powf"
+            )));
+        }
+    };
+    let output = match (unary, y) {
+        (Some(f), None) => x.iter().map(|v| f(*v)).collect::<Vec<f32>>(),
+        (None, Some(y)) => {
+            let y = values_or_one(y)?;
+            let n = x.len().max(y.len());
+            if (x.len() != 1 && x.len() != n) || (y.len() != 1 && y.len() != n) {
+                return Err(PyValueError::new_err("x and y need one length"));
+            }
+            let at = |v: &[f32], i: usize| v[if v.len() == 1 { 0 } else { i }];
+            (0..n).map(|i| at(&x, i).powf(at(&y, i))).collect()
+        }
+        _ => return Err(PyValueError::new_err("only powf takes y")),
+    };
+    Ok(to_bytes(py, &output))
+}
+
 #[derive(Clone, Copy)]
 enum Kind {
     Low,

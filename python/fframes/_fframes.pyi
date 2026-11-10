@@ -449,6 +449,16 @@ def biquad(
 ) -> bytes:
     """`samples` through an RBJ biquad; `freq` is one cutoff or one per sample."""
 
+def saw(freq: float | Samples, n: int, phase: float = 0.0, sample_rate: float = 48000.0) -> bytes:
+    """`n` f32 samples of a polyBLEP sawtooth; `freq` is one value or one per sample."""
+
+def f32_math(
+    op: Literal["sin", "cos", "exp", "tanh", "powf"],
+    x: float | Samples,
+    y: float | Samples | None = None,
+) -> bytes:
+    """`op` over f32 samples with Rust f32 math; `y` is the exponent of `powf`."""
+
 def cli(
     video: Any,
     argv: Sequence[str] | None = None,
