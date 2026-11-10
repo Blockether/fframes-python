@@ -461,6 +461,24 @@ def f32_math(
 ) -> bytes:
     """`op` over f32 samples with Rust f32 math; `y` is the exponent of `powf`."""
 
+def phasor(step: float | Samples, n: int, phase: float = 0.0) -> bytes:
+    """The f32 phase after each of `n` steps of `phase = (phase + step).fract()`."""
+
+def sine(freq: float | Samples, n: int, phase: float = 0.0, sample_rate: float = 48000.0) -> bytes:
+    """`n` f32 samples of `sin(phase * TAU)`, stepping `phase` by `freq / sample_rate`."""
+
+def one_pole(target: Samples, coef: float, value: float = 0.0) -> bytes:
+    """`value += (target - value) * coef` per sample; the value after each step."""
+
+def karplus_strong(excitation: Samples, n: int, damping: float) -> bytes:
+    """`n` samples of a Karplus-Strong string whose delay line starts as `excitation`."""
+
+def comb(samples: Samples, size: int, feedback: float, damp: float, gain: float = 0.015) -> bytes:
+    """A Freeverb comb filter of `size` samples; returns the delayed value of each sample."""
+
+def allpass(samples: Samples, size: int, feedback: float = 0.5) -> bytes:
+    """A Freeverb all-pass filter of `size` samples."""
+
 def cli(
     video: Any,
     argv: Sequence[str] | None = None,
