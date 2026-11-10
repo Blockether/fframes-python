@@ -181,7 +181,7 @@ impl PyFrame {
             ..Default::default()
         };
         let (ctx, inner) = (ctx.get()?, &self.inner);
-        media_api::without_gil(py, || {
+        crate::gil::detached(py, || {
             let frame = inner.get_synced_video_frame(ctx, file, &input)?;
             media_api::DecodedFrame::new(&*frame, width, height)
         })
@@ -201,7 +201,7 @@ impl PyFrame {
         height: Option<u32>,
     ) -> PyResult<Option<PyVideoFrame>> {
         let (ctx, inner) = (ctx.get()?, &self.inner);
-        media_api::without_gil(py, || {
+        crate::gil::detached(py, || {
             let frame = inner.video_frame_at(ctx, file, seconds, None)?;
             media_api::DecodedFrame::new(&*frame, width, height)
         })

@@ -282,20 +282,6 @@ impl DecodedFrame {
     }
 }
 
-/// Runs `f` without the GIL, so other render threads run Python meanwhile. `f` uses only
-/// the Rust data of the frame and the context that the calling thread lends it.
-pub fn without_gil<T>(py: Python<'_>, f: impl FnOnce() -> T) -> T {
-    struct AssertSend<T>(T);
-    // SAFETY: the calling thread waits for `f` and touches no Python object inside it.
-    unsafe impl<T> Send for AssertSend<T> {}
-    let f = AssertSend(f);
-    py.detach(move || {
-        let f = f;
-        AssertSend((f.0)())
-    })
-    .0
-}
-
 /// The output size for `width`/`height` keywords, keeping the aspect of `frame` when only
 /// one is given.
 pub fn resize_to(
@@ -403,16 +389,17 @@ impl PyClip {
     #[pyo3(signature = (frame, ctx, width = None))]
     fn image(
         &self,
+        py: Python<'_>,
         frame: &PyFrame,
         ctx: &crate::frame::PyContext,
         width: Option<u32>,
     ) -> PyResult<Option<PyImage>> {
         let ctx = ctx.get()?;
         let clip = self.build();
-        let image = match width {
+        let image = crate::gil::detached(py, || match width {
             Some(width) => clip.image_at_width(&frame.inner, ctx, width),
             None => clip.image(&frame.inner, ctx),
-        };
+        });
         Ok(image.map(|image| PyImage { data: image.image }))
     }
 }

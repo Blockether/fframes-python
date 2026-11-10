@@ -4,6 +4,7 @@ mod animation;
 mod captions;
 mod cli_options;
 mod frame;
+mod gil;
 mod media;
 mod media_api;
 mod render;

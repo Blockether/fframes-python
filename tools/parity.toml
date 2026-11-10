@@ -63,3 +63,39 @@ at = "0s,1s,2.5s,4s"
 args = []
 renderer = "cpu"
 max_diff = 0
+
+[neon-triangle]
+script = "examples/neon_triangle.py"
+rust_bin = "neon_triangle_example_bin"
+example_dir = "neon-triangle"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[shaders]
+script = "examples/shaders.py"
+rust_bin = "shaders_example_bin"
+example_dir = "shaders"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "skia-cpu"
+max_diff = 0
+
+[anamorphic-video]
+script = "examples/anamorphic_video.py"
+rust_bin = "anamorphic-video"
+example_dir = "anamorphic-video"
+at = "0s,0.4s,0.9s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[teej-podcast]
+script = "examples/teej_podcast.py"
+rust_bin = "teej_podcast_example_bin"
+example_dir = "teej-podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
