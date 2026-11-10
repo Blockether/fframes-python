@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tomllib
 
+import _fframes_intro_ui
 import _media
 import fframes as ff
 import numpy as np
@@ -38,11 +39,11 @@ def round_u(x) -> int:
 
 
 def sin32(x):
-    return F(math.sin(float(x)))
+    return F(_fframes_intro_ui._libm.sinf(F(x)))
 
 
 def cos32(x):
-    return F(math.cos(float(x)))
+    return F(_fframes_intro_ui._libm.cosf(F(x)))
 
 
 def powf(x, y):
@@ -1060,6 +1061,506 @@ class ScaleScene(BeatScene):
         return GROUP(content=[wall(lb), question(lb)])
 
 
+# --- 09 / BENCHMARK: Remotion and fframes render the same 100,000 elements, as a time-lapse
+
+RACE_START, RACE_BEATS, RESULT_AT, TABLE_AT = F(2.0), F(12.0), F(16.0), F(22.0)
+SLOWEST = max(BENCH_REMOTION_S, BENCH_FFRAMES_S, F(0.001))
+GRID_INK = ff.Color.hex("#6f6a63")
+LANES = (
+    (BENCH_REMOTION_LABEL, "CHROME + REACT → H.264 MP4", BENCH_REMOTION_S, GREY, F(470.0)),
+    (BENCH_FFRAMES_LABEL, "RUST + SKIA → H.264 MP4", BENCH_FFRAMES_S, ORANGE, F(700.0)),
+)  # fmt: skip
+LANE = T("""
+<g opacity="{opacity}" transform="{transform}">
+    <text x="150" y="{y}" font-family="{DISPLAY}" font-size="58" letter-spacing="-2" fill="{name_fill}">{name}</text>
+    <text x="150" y="{y_sub}" font-family="{MONO}" font-weight="500" font-size="18" letter-spacing="2.5" fill="{GREY}">{sub}</text>
+    <rect x="150" y="{y_bar}" width="1620" height="64" fill="#141312" stroke="#2f2c29" stroke-width="1.5" />
+    <rect x="150" y="{y_bar}" width="{bar_w}" height="64" fill="{color}" />
+    <rect x="150" y="{y_bar}" width="1620" height="64" fill="{BONE}" opacity="{flash}" />
+    <text x="1770" y="{y}" text-anchor="end" font-family="{MONO}" font-weight="600" font-size="52" fill="{time_fill}">{time}</text>
+    <text x="170" y="{y_in}" font-family="{MONO}" font-weight="600" font-size="22" letter-spacing="2" fill="{INK}" opacity="{frames_o}">{frames}</text>
+    <g opacity="{done_o}" transform="{done_t}">
+        <text x="1750" y="{y_in}" text-anchor="end" font-family="{MONO}" font-weight="700" font-size="24" letter-spacing="4" fill="{INK}">DONE</text>
+    </g>
+</g>
+""")
+RACE = T("""
+<g opacity="{opacity}">
+    {title}
+    {spec}
+    {rows}
+    <g opacity="{lapse_o}">
+        {lapse}
+    </g>
+</g>
+""")
+NODES_TITLE = Slam(150.0, 250.0, "100,000 TEXT NODES", DISPLAY, 120.0, BONE)
+RACE_SPEC = label(154.0, 310.0, "300 FRAMES · 3840×2160 · H.264 MP4 · SAME LAYOUT, SAME FONT", GREY, 20.0, "start")
+SPEEDUP = SLOWEST / (RACE_BEATS * BEAT)
+RACE_LAPSE = label(1770.0, 310.0, f"TIME-LAPSE ×{float(SPEEDUP):.1f} · MEASURED WALL CLOCK", ORANGE, 20.0, "end")
+
+
+def race(lb):
+    real = prog(lb, RACE_START, RACE_START + RACE_BEATS) * SLOWEST
+    rows = []
+    for i, (name, sub, secs, color, y) in enumerate(LANES):
+        appear = snap(lb - F(0.6) - F(i) * F(0.3))
+        pr = min(real / max(secs, F(0.001)), F(1.0))
+        done = pr >= 1.0
+        bar_w = max(F(1620.0) * pr, F(0.5))
+        done_at = RACE_START + RACE_BEATS * secs / SLOWEST
+        stamp = snap(lb - done_at)
+        flash = exp32(-(lb - done_at) * F(6.0)) if done else F(0.0)
+        rows.append(
+            LANE(
+                opacity=f(prog(lb, F(0.6) + F(i) * F(0.3), F(0.7) + F(i) * F(0.3))),
+                transform=f"translate({s32((F(1.0) - appear) * F(-120.0))} 0)",
+                y=f(y), name_fill=ORANGE if i == 1 else BONE, name=text(name), y_sub=f(y + F(34.0)),
+                sub=text(sub), y_bar=f(y + F(56.0)), bar_w=f(bar_w), color=color, flash=f(flash * F(0.6)),
+                time_fill=color if done else BONE, time=text(f"{float(min(real, secs)):.3f}s"),
+                y_in=f(y + F(100.0)), frames_o=1.0 if bar_w > 260.0 else 0.0,
+                frames=text(f"{int(math.floor(F(300.0) * pr))} / 300 FRAMES"), done_o=1.0 if done else 0.0,
+                done_t=f"translate(0 {s32((F(1.0) - stamp) * F(20.0))})",
+            )  # fmt: skip
+        )
+    return RACE(
+        opacity=f(F(1.0) - expo_in(prog(lb, 15.6, 16.0))), title=NODES_TITLE.draw(lb, 0.0, 140.0),
+        spec=RACE_SPEC, rows=rows, lapse_o=f(prog(lb, RACE_START, RACE_START + F(0.2))), lapse=RACE_LAPSE,
+    )  # fmt: skip
+
+
+RESULT = T("""
+<g opacity="{opacity}">
+    <rect width="1920" height="1080" fill="{ORANGE}" />
+    <g transform="{t}">
+        <text x="130" y="760" font-family="{DISPLAY}" font-size="480" letter-spacing="-30" fill="{INK}">{n}</text>
+    </g>
+    <text x="150" y="{y}" font-family="{DISPLAY}" font-size="120" letter-spacing="-4" fill="{INK}" opacity="{o}">FASTER THAN REMOTION</text>
+    <g font-family="{MONO}" font-weight="600" font-size="22" letter-spacing="4" fill="{INK}">
+        <text x="150" y="170">SAME 100,000 TEXT NODES</text>
+        <text x="1770" y="170" text-anchor="end">COMPLETE MP4 · MEDIAN WALL CLOCK</text>
+    </g>
+    <rect x="150" y="196" width="1620" height="3" fill="{INK}" />
+</g>
+""")
+RATIO = BENCH_REMOTION_S / max(BENCH_FFRAMES_S, F(0.001))
+
+
+def result(l):
+    """N× FASTER on an orange field."""
+    n = F(1.0) + (RATIO - F(1.0)) * expo_out(prog(l, 0.0, 1.2))
+    s = F(1.0) + (F(1.0) - expo_out(l / F(0.35))) * F(0.15)
+    return RESULT(
+        opacity=f(F(1.0) - expo_in(prog(l, 5.7, 6.0))),
+        t=f"translate(150 760) scale({s32(s)}) translate(-150 -760)", n=text(f"{float(n):.2f}×"),
+        y=f(F(900.0) + (F(1.0) - snap(l - F(1.0))) * F(60.0)), o=f(prog(l, 1.0, 1.08)),
+    )  # fmt: skip
+
+
+TABLE_ROWS = (
+    (BENCH_REMOTION_LABEL, BENCH_REMOTION_S, GREY), ("FFRAMES · CPU", BENCH_FFRAMES_CPU_S, BONE),
+    (BENCH_FFRAMES_LABEL, BENCH_FFRAMES_S, ORANGE),
+)  # fmt: skip
+TABLE_ROW = T("""
+<g opacity="{opacity}" transform="{transform}">
+    <rect x="150" y="{y_box}" width="1620" height="110" fill="#0f0e0d" fill-opacity="0.85" stroke="#2f2c29" stroke-width="1.5" />
+    <rect x="150" y="{y_box}" width="6" height="110" fill="{color}" />
+    <text x="190" y="{y}" font-family="{DISPLAY}" font-size="48" letter-spacing="-1" fill="{BONE}">{name}</text>
+    <text x="1740" y="{y}" text-anchor="end" font-family="{MONO}" font-weight="600" font-size="48" fill="{color}">{secs}</text>
+</g>
+""")
+TABLE = T("""
+<g opacity="{opacity}">
+    {title}
+    {wall}
+    {items}
+    {a}
+    {b}
+    {c}
+</g>
+""")
+NUMBERS = Slam(150.0, 300.0, "THE NUMBERS", DISPLAY, 110.0, BONE)
+TABLE_LABELS = dict(
+    wall=label(1740.0, 400.0, "WALL CLOCK", GREY, 18.0, "end"),
+    a=label(154.0, 860.0, "RENDER + ENCODE + MP4", BONE, 18.0, "start"),
+    b=label(154.0, 900.0, BENCH_NOTE, GREY, 18.0, "start"),
+    c=label(154.0, 940.0, "REPRODUCE: RENDER-BENCH/VS-REMOTION IN THE FFRAMES REPO", ORANGE, 18.0, "start"),
+)
+
+
+def table(l):
+    items = []
+    for i, (name, secs, color) in enumerate(TABLE_ROWS):
+        at = F(0.3) + F(i) * F(0.5)
+        y = F(520.0) + F(i) * F(130.0)
+        items.append(
+            TABLE_ROW(
+                opacity=f(prog(l, at, at + F(0.08))), transform=f"translate({s32((F(1.0) - snap(l - at)) * F(80.0))} 0)",
+                y_box=f(y - F(70.0)), color=color, y=f(y), name=text(name), secs=text(f"{float(secs):.3f} s"),
+            )  # fmt: skip
+        )
+    return TABLE(
+        opacity=f(F(1.0) - expo_in(prog(l, 9.6, 10.0))), title=NUMBERS.draw(l, 0.0, 120.0), items=items,
+        **TABLE_LABELS,
+    )  # fmt: skip
+
+
+BENCH_FRAME = T('<g><image href="{grid}" x="0" y="0" width="1920" height="1080" />{body}</g>')
+
+
+class BenchmarkScene(BeatScene):
+    START, END = 96.0, 128.0
+
+    def render_frame(self, frame, ctx):
+        lb = self.lb(frame)
+        if RESULT_AT <= lb < TABLE_AT:
+            return result(lb - RESULT_AT)
+        layer = GRID.draw(frame, {
+            "uSpeed": 2.0, "uHorizon": 0.62, "uBright": 0.35, "uInk": GRID_INK, "uHot": ORANGE_C,
+        })  # fmt: skip
+        body = race(lb) if lb < RESULT_AT else table(lb - TABLE_AT)
+        return BENCH_FRAME(grid=layer, body=body)
+
+
+# --- 10 / PREVIEW: the native preview window playing this video in real time on the GPU
+
+TAKEOVER = F(16.0)
+TAKEOVER_ROWS = (
+    ((("NO", 16.0), ("BROWSER", 17.0)), F(380.0), BONE, F(-1.0)),
+    ((("AT", 18.0), ("ALL", 19.0)), F(690.0), ORANGE, F(1.0)),
+    ((("ANYWHERE", 20.0),), F(1000.0), BONE, F(-1.0)),
+)  # fmt: skip
+WIN = (F(590.0), F(262.0), F(1180.0), F(660.8))
+KEYS = (("SPACE", "PLAY / PAUSE"), ("H  L", "SEEK A SECOND"), ("J  K", "STEP A FRAME"))
+PREVIEW_WINDOW = T("""
+<g>
+    <clipPath id="preview-win"><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" /></clipPath>
+    <rect x="{x}" y="{y_shadow}" width="{w}" height="{h}" rx="{r}" fill="#000000" opacity="{shadow}" filter="url(#preview-shadow)" />
+    <g clip-path="url(#preview-win)">
+        <image href="{img}" x="{x}" y="{y}" width="{w}" height="{h}" />
+    </g>
+    <rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" fill="none" stroke="#3d3a35" stroke-width="1.5" opacity="{edge}" />
+</g>
+""")
+PREVIEW_KEY = T("""
+<g opacity="{opacity}" transform="{transform}">
+    <rect x="150" y="{y_box}" width="120" height="54" rx="8" fill="#161514" stroke="{BONE}" stroke-opacity="0.5" stroke-width="1.5" />
+    <text x="210" y="{y}" text-anchor="middle" font-family="{MONO}" font-weight="600" font-size="20" fill="{BONE}">{key}</text>
+    <text x="290" y="{y}" font-family="{MONO}" font-weight="500" font-size="18" letter-spacing="2" fill="{GREY}">{what}</text>
+</g>
+""")
+PREVIEW = T("""
+<g opacity="{opacity}">
+    <defs>
+        <filter id="preview-shadow" x="-10%" y="-10%" width="120%" height="130%">
+            <feGaussianBlur stdDeviation="24" />
+        </filter>
+    </defs>
+    <image href="{grid}" x="0" y="0" width="1920" height="1080" />
+    <g opacity="{side}">
+        {watch}
+        {live}
+    </g>
+    <g transform="{t}" opacity="{win_o}">{window}</g>
+    <g opacity="{cmd}">
+        <text x="150" y="330" font-family="{MONO}" font-weight="500" font-size="20" letter-spacing="3" fill="{GREY}">NATIVE PREVIEW WINDOW</text>
+        <text x="150" y="380" font-family="{MONO}" font-weight="600" font-size="26" fill="{ORANGE}">$</text>
+        <text x="180" y="380" font-family="{MONO}" font-weight="500" font-size="26" fill="{BONE}">cargo run -- preview</text>
+        <text x="150" y="440" font-family="{MONO}" font-weight="500" font-size="20" letter-spacing="2" fill="{BONE}">GPU · WITH SOUND</text>
+        <text x="150" y="472" font-family="{MONO}" font-weight="500" font-size="20" letter-spacing="2" fill="{BONE}">NO BROWSER, NO BUNDLER</text>
+    </g>
+    <g opacity="{side}">
+        {keys}
+        {realtime}
+        {scrub}
+    </g>
+    {takeover}
+</g>
+""")
+WATCH = Slam(150.0, 205.0, "WATCH IT", DISPLAY, 110.0, BONE)
+LIVE = Slam(820.0, 205.0, "LIVE.", DISPLAY, 110.0, ORANGE)
+TAKEOVER_FRAME = T('<g><rect width="1920" height="1080" fill="#050505" opacity="{dim}" />{rows}</g>')
+
+
+def takeover(lb):
+    """NO BROWSER / AT ALL / ANYWHERE: rows that slam in word by word and drift apart."""
+    l = lb - TAKEOVER
+    if l < 0.0:
+        return None
+    rows = []
+    for words, y, color, direction in TAKEOVER_ROWS:
+        first = F(words[0][1]) - TAKEOVER
+        shown = [w for w, at in words if lb >= F(at)]
+        if not shown:
+            rows.append(None)
+            continue
+        drift = direction * max(l - first, F(0.0)) * F(34.0)
+        x = F(60.0) + drift + (F(-140.0) if direction > 0.0 else F(0.0))
+        rows.append(GROUP(content=Slam(x, y, " ".join(shown), DISPLAY, 330.0, color).draw(l - first, 0.0, 220.0)))
+    return TAKEOVER_FRAME(dim=f(prog(l, 0.0, 0.5) * F(0.6)), rows=rows)
+
+
+class PreviewScene(BeatScene):
+    START, END = 128.0, 160.0
+
+    def render_frame(self, frame, ctx):
+        lb = self.lb(frame)
+        layer = GRID.draw(frame, {
+            "uSpeed": 1.5, "uHorizon": 0.7, "uBright": 0.3, "uInk": GRID_INK, "uHot": ORANGE_C,
+        })  # fmt: skip
+        capture = clip_frame(frame, ctx, "preview_capture.mp4")
+        full = expo_out(prog(lb, TAKEOVER, TAKEOVER + F(0.7)))
+        x, y = lerp(WIN[0], 0.0, full), lerp(WIN[1], 0.0, full)
+        w, h = lerp(WIN[2], 1920.0, full), lerp(WIN[3], 1075.2, full)
+        radius = F(14.0) * (F(1.0) - full)
+        enter = snap(lb - F(0.5))
+        s = F(0.9) + F(0.1) * enter
+        cx, cy = x + w / F(2.0), y + h / F(2.0)
+        t = f"translate({s32(cx)} {s32(cy + (F(1.0) - enter) * F(120.0))}) scale({s32(s)}) translate({s32(-cx)} {s32(-cy)})"
+        window = None
+        if capture is not None:
+            window = PREVIEW_WINDOW(
+                x=f(x), y=f(y), w=f(w), h=f(h), r=f(radius), y_shadow=f(y + F(18.0)),
+                shadow=f(F(0.55) * (F(1.0) - full)), img=capture, edge=f(F(1.0) - full),
+            )  # fmt: skip
+        keys = []
+        for i, (key, what) in enumerate(KEYS):
+            at = F(3.0) + F(i) * F(0.5)
+            ky = F(560.0) + F(i) * F(78.0)
+            keys.append(
+                PREVIEW_KEY(
+                    opacity=f(prog(lb, at, at + F(0.1))), transform=f"translate({s32((F(1.0) - snap(lb - at)) * F(-60.0))} 0)",
+                    y_box=f(ky - F(38.0)), y=f(ky - F(3.0)), key=text(key), what=text(what),
+                )  # fmt: skip
+            )
+        side = F(1.0) - prog(lb, TAKEOVER - F(0.2), TAKEOVER + F(0.1))
+        return PREVIEW(
+            opacity=f(F(1.0) - expo_in(prog(lb, 31.5, 32.0))), grid=layer, side=f(side),
+            watch=WATCH.draw(lb, 0.0, 150.0), live=LIVE.draw(lb - F(1.0), 0.0, 150.0), t=t,
+            win_o=f(prog(lb, 0.5, 0.6)), window=window, cmd=f(prog(lb, 2.0, 2.4) * side), keys=keys,
+            realtime=callout(WIN[0] + F(720.0), WIN[1] + F(12.0), WIN[0] + F(720.0), 170.0,
+                             "REAL-TIME, FRAME BY FRAME", ORANGE, prog(lb, 6.0, 6.8)),
+            scrub=callout(WIN[0] + F(354.0), WIN[1] + F(630.0), 560.0, 975.0, "PLAY · SEEK · LOOP · SCRUB",
+                          BONE, prog(lb, 8.0, 8.8)),
+            takeover=takeover(lb),
+        )  # fmt: skip
+
+
+# --- 11 / AGENTS: the loop an agent runs while it makes a video, with real CLI output on the hits
+
+# global beats of the stutter hits that bring in a new card
+CARD_BEATS = (175.0, 179.0, 183.0, 187.0, 191.0, 195.0)
+AGENT_NODES = ("WRITE", "TIMELINE", "INSPECT", "STRIP", "FRAME", "RENDER")
+CARDS = (
+    (1, "cargo run -- timeline", (
+        ("1920x1080 @ 60 fps, 7650 frames (127.50s)", BONE), ("#0   PromptScene      0.00s..2.15s", GREY),
+        ("#1   OriginScene      2.15s..16.70s", GREY), ("#2   CodeScene       16.70s..23.97s", GREY),
+        ("#3   GpuScene        23.97s..27.60s", GREY), ("audio music.wav       0.000s..127.500s", ORANGE),
+    )),
+    (2, "cargo run -- inspect", (
+        ("checked 540 frames: 13 findings", BONE), ("0 errors · 13 warnings: marquee rows and", GREY),
+        ("type that overflows the canvas on purpose", GREY),
+    )),
+    (3, "cargo run -- strip all -n 30", ("strip_self.jpg", F(1.887))),
+    (4, "cargo run -- frame Shader@2.7s", ("frame_self.jpg", F(1.778))),
+    (0, "cargo run -- audio analyze", (
+        ("integrated -14.1 LUFS, range 10.3 LU", BONE), ("true peak -1.2 dBTP, clipped samples 0", BONE),
+        ("GpuScene        23.97s..27.60s   -13.0 LUFS", GREY), ("BenchmarkScene  45.78s..60.33s   -13.0 LUFS", GREY),
+    )),
+    (5, "cargo run -- render --draft", (("out.mp4 frames 0..7650 (0.00s..127.50s)", GREY), ("960x540 in 5.3s", ORANGE))),
+)  # fmt: skip
+RING_X, RING_Y, RING_R = F(1370.0), F(590.0), F(250.0)
+CONTOUR_INK = ff.Color.hex("#8a857c")
+RING_NODE = T("""
+<g opacity="{opacity}">
+    <rect x="{x}" y="{y}" width="{size}" height="{size}"
+          fill="{fill}" stroke="{stroke}" stroke-width="2" />
+    <text x="{lx}" y="{ly}" text-anchor="{anchor}" font-family="{MONO}" font-weight="600" font-size="22" letter-spacing="3"
+          fill="{text_fill}">{name}</text>
+</g>
+""")
+COMET = T('<circle cx="{x}" cy="{y}" r="{r}" fill="{ORANGE}" opacity="{o}" />')
+RING = T("""
+<g>
+    <circle cx="{cx}" cy="{cy}" r="{r}" fill="none" stroke="{GREY}" stroke-width="1.5"
+            stroke-dasharray="{dash}" transform="{rotate}" />
+    <circle cx="{cx}" cy="{cy}" r="{r_in}" fill="none" stroke="{DIM}" stroke-width="1" stroke-dasharray="4 8" opacity="{draw}" />
+    {comet}
+    {nodes}
+    <g opacity="{center}">
+        <text x="{cx}" y="{y_a}" text-anchor="middle" font-family="{SERIF}" font-style="italic" font-size="64" fill="{BONE}">the agent</text>
+        <text x="{cx}" y="{y_b}" text-anchor="middle" font-family="{MONO}" font-weight="500" font-size="18" letter-spacing="3" fill="{GREY}">NEVER WATCHES A VIDEO</text>
+    </g>
+</g>
+""")
+RING_ROTATE = f"rotate(-90 {s32(RING_X)} {s32(RING_Y)})"
+
+
+def ring(lb, lit):
+    draw = cubic_in_out(prog(lb, 2.0, 5.0))
+    circ = TAU * RING_R
+    nodes = []
+    for i, name in enumerate(AGENT_NODES):
+        a = -FRAC_PI_2 + F(i) / F(len(AGENT_NODES)) * TAU
+        ca, sa = cos32(a), sin32(a)
+        x, y = RING_X + ca * RING_R, RING_Y + sa * RING_R
+        at = F(2.5) + F(i) * F(0.4)
+        s = snap(lb - at)
+        on = lit == i
+        size = F(18.0) + (F(8.0) if on else F(0.0))
+        side = size * max(s, F(0.05))
+        nodes.append(
+            RING_NODE(
+                opacity=f(prog(lb, at, at + F(0.1))), x=f(x - size / F(2.0)), y=f(y - size / F(2.0)),
+                size=f(side), fill=ORANGE if on else BG, stroke=ORANGE if on else BONE,
+                lx=f(RING_X + ca * (RING_R + F(44.0))), ly=f(RING_Y + sa * (RING_R + F(44.0)) + F(8.0)),
+                anchor="start" if ca > 0.3 else ("end" if ca < -0.3 else "middle"),
+                text_fill=ORANGE if on else BONE, name=text(name),
+            )  # fmt: skip
+        )
+    comet = []
+    if lb > 5.0:
+        for k in range(10):
+            a = -FRAC_PI_2 + ((lb - F(5.0)) / F(8.0) - F(k) * F(0.008)) * TAU
+            comet.append(
+                COMET(x=f(RING_X + cos32(a) * RING_R), y=f(RING_Y + sin32(a) * RING_R),
+                      r=f(F(7.0) - F(k) * F(0.5)), o=f(F(1.0) - F(k) / F(10.0)))
+            )
+    return RING(
+        cx=f(RING_X), cy=f(RING_Y), r=f(RING_R), dash=f"{s32(circ * draw)} {s32(circ)}", rotate=RING_ROTATE,
+        r_in=f(RING_R - F(30.0)), draw=f(draw), comet=comet, nodes=nodes, center=f(prog(lb, 4.0, 4.5)),
+        y_a=f(RING_Y - F(6.0)), y_b=f(RING_Y + F(36.0)),
+    )  # fmt: skip
+
+
+CARD_LINE = T('<text x="{x}" y="{y}" font-family="{MONO}" font-weight="500" font-size="23" fill="{fill}" opacity="{o}">{t}</text>')
+CARD_IMAGE_BODY = T('<g opacity="{o}">{img}</g>')
+CARD = T("""
+<g opacity="{opacity}" transform="{transform}">
+    <rect x="{x}" y="{y}" width="{w}" height="{h}" fill="#0e0d0c" fill-opacity="0.92" stroke="#3d3a35" stroke-width="1.5" />
+    <rect x="{x}" y="{y}" width="4" height="{h}" fill="{ORANGE}" />
+    <text x="{x_text}" y="{y_cmd}" font-family="{MONO}" font-weight="600" font-size="25" fill="{ORANGE}">$</text>
+    <text x="{x_cmd}" y="{y_cmd}" font-family="{MONO}" font-weight="500" font-size="25" fill="{BONE}">{command}</text>
+    <rect x="{x_text}" y="{y_rule}" width="{w_rule}" height="1" fill="#3d3a35" />
+    {body}
+</g>
+""")
+
+
+def card(ctx, spec, l):
+    """A terminal card: the command, then its output lines or image."""
+    _node, command, body_spec = spec
+    x, y, w = F(150.0), F(440.0), F(800.0)
+    typed = usize(min((l / F(0.5)) * F(len(command)), F(len(command))))
+    if isinstance(body_spec[0], str):
+        name, aspect = body_spec
+        iw = w - F(56.0)
+        ih = iw / aspect
+        img = ctx.image(name)
+        img = None if img is None else IMAGE(href=img, x=f(x + F(28.0)), y=f(y + F(84.0)), width=f(iw), height=f(ih))
+        body, h = CARD_IMAGE_BODY(o=f(prog(l, 0.45, 0.6)), img=img), F(84.0) + ih + F(28.0)
+    else:
+        rows = [
+            CARD_LINE(x=f(x + F(28.0)), y=f(y + F(110.0) + F(i) * F(36.0)), fill=color,
+                      o=f(prog(l, F(0.5) + F(i) * F(0.08), F(0.55) + F(i) * F(0.08))), t=text(line))
+            for i, (line, color) in enumerate(body_spec)
+        ]  # fmt: skip
+        body, h = GROUP(content=rows), F(90.0) + F(len(body_spec)) * F(36.0) + F(20.0)
+    return CARD(
+        opacity=f(prog(l, 0.0, 0.08)), transform=f"translate({s32((F(1.0) - snap(l)) * F(-80.0))} 0)",
+        x=f(x), y=f(y), w=f(w), h=f(h), x_text=f(x + F(28.0)), y_cmd=f(y + F(52.0)), x_cmd=f(x + F(58.0)),
+        command=text(command[:typed]), y_rule=f(y + F(70.0)), w_rule=f(w - F(56.0)), body=body,
+    )  # fmt: skip
+
+
+CONFESSION = T("""
+<g opacity="{opacity}" transform="{transform}">
+    {a}
+    {b}
+    <text x="156" y="712" font-family="{SERIF}" font-style="italic" font-size="54" fill="{BONE}" opacity="{c}">in Rust, with fframes. No timeline editor was opened.</text>
+</g>
+""")
+THIS_VIDEO = Slam(150.0, 470.0, "THIS VIDEO WAS", DISPLAY, 138.0, BONE)
+MADE_BY = Slam(150.0, 630.0, "MADE BY AN AGENT.", DISPLAY, 138.0, ORANGE)
+
+
+def confession(l):
+    """THIS VIDEO WAS / MADE BY AN AGENT."""
+    collapse = expo_in(prog(l, 7.3, 8.0))
+    s = F(1.0) - collapse * F(0.15)
+    return CONFESSION(
+        opacity=f(F(1.0) - collapse), transform=f"translate(960 540) scale({s32(s)}) translate(-960 -540)",
+        a=THIS_VIDEO.draw(l, 0.0, 160.0), b=MADE_BY.draw(l - F(1.0), 0.0, 160.0), c=f(prog(l, 3.0, 3.4)),
+    )  # fmt: skip
+
+
+PROMPT_CARD = T("""
+<g opacity="{opacity}" transform="{transform}">
+    <text x="150" y="480" font-family="{MONO}" font-weight="500" font-size="20" letter-spacing="3" fill="{GREY}">IT STARTS WITH A PROMPT</text>
+    <rect x="150" y="510" width="800" height="150" fill="#0e0d0c" fill-opacity="0.92" stroke="{ORANGE}" stroke-width="2" />
+    <text x="180" y="572" font-family="{MONO}" font-weight="600" font-size="32" fill="{ORANGE}">›</text>
+    <text x="220" y="572" font-family="{MONO}" font-weight="500" font-size="32" fill="{BONE}">{first}</text>
+    <text x="220" y="620" font-family="{MONO}" font-weight="500" font-size="32" fill="{BONE}">{second}</text>
+</g>
+""")
+
+
+def prompt_card(l):
+    """Before the first command: the prompt from the cold open, again."""
+    if l < 0.0:
+        return None
+    shown = PROMPT[: usize(min((l / F(3.0)) * F(len(PROMPT)), F(len(PROMPT))))]
+    first, second = (shown[:33], shown[33:]) if len(shown) > 33 else (shown, "")
+    return PROMPT_CARD(
+        opacity=f(prog(l, 0.0, 0.1)), transform=f"translate({s32((F(1.0) - snap(l)) * F(-80.0))} 0)",
+        first=text(first), second=text(second),
+    )  # fmt: skip
+
+
+AGENTS = T("""
+<g>
+    {bg}
+    <g opacity="{opacity}">
+        <g transform="{t_a}" opacity="{o_a}">
+            <text x="150" y="235" font-family="{DISPLAY}" font-size="110" letter-spacing="-4" fill="{BONE}">BUILT FOR THE</text>
+        </g>
+        <g transform="{t_b}" opacity="{o_b}">
+            <text x="150" y="345" font-family="{DISPLAY}" font-size="110" letter-spacing="-4" fill="{ORANGE}">AGENTIC LOOP.</text>
+        </g>
+        {ring}
+        {card}
+    </g>
+</g>
+""")
+LOCAL_CARDS = tuple(F(b) - F(160.0) for b in CARD_BEATS)
+WELL = (f(RING_X / F(1920.0)), f(RING_Y / F(1080.0)))
+
+
+class AgentsScene(BeatScene):
+    START, END = 160.0, 208.0
+
+    def render_frame(self, frame, ctx):
+        lb = self.lb(frame)
+        layer = CONTOUR.draw(frame, {
+            "uWell": WELL, "uDepth": 0.9, "uDensity": 20.0, "uBright": f(F(0.3) * prog(lb, 0.0, 2.0)),
+            "uInk": CONTOUR_INK, "uHot": ORANGE_C,
+        })  # fmt: skip
+        bg = FULL_IMAGE(href=layer)
+        if lb >= 40.0:
+            return GROUP(content=[bg, confession(lb - F(40.0))])
+        active = next((i for i in reversed(range(len(LOCAL_CARDS))) if lb >= LOCAL_CARDS[i]), None)
+        if active is None:
+            card_svg, lit = prompt_card(lb - F(6.0)), None
+        else:
+            card_svg, lit = card(ctx, CARDS[active], lb - LOCAL_CARDS[active]), CARDS[active][0]
+        return AGENTS(
+            bg=bg, opacity=f(F(1.0) - expo_in(prog(lb, 39.6, 40.0))),
+            t_a=f"translate(0 {s32((F(1.0) - snap(lb)) * F(60.0))})", o_a=f(prog(lb, 0.0, 0.1)),
+            t_b=f"translate(0 {s32((F(1.0) - snap(lb - F(1.5))) * F(60.0))})", o_b=f(prog(lb, 1.5, 1.6)),
+            ring=ring(lb, lit), card=card_svg,
+        )  # fmt: skip
+
+
 # --- STUB scenes (to be ported)
 _EMPTY = T("<g></g>")
 
@@ -1068,9 +1569,6 @@ def _stub(name, start, end):
     return type(name, (BeatScene,), {"START": start, "END": end, "render_frame": lambda self, frame, ctx: _EMPTY()})
 
 
-BenchmarkScene = _stub("BenchmarkScene", 96.0, 128.0)
-PreviewScene = _stub("PreviewScene", 128.0, 160.0)
-AgentsScene = _stub("AgentsScene", 160.0, 208.0)
 RenderScene = _stub("RenderScene", 208.0, 224.0)
 RecapScene = _stub("RecapScene", 224.0, 236.0)
 DoneScene = _stub("DoneScene", 236.0, 240.0)
@@ -1083,7 +1581,6 @@ SCENES = (
 
 # --- the video: the beat-grid scenes under a pumping, glitching, flashing frame and a HUD
 
-CARD_BEATS = (175.0, 179.0, 183.0, 187.0, 191.0, 195.0)
 SECTIONS = (
     (-99.0, "00 / PROMPT"), (0.0, "01 / ORIGIN"), (32.0, "02 / CODE"), (48.0, "03 / GPU"),
     (56.0, "04 / TEXT"), (62.0, "05 / IMAGE"), (66.0, "06 / VIDEO"), (72.0, "07 / SHADER"),

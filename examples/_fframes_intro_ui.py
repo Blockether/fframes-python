@@ -125,7 +125,19 @@ def pulse(beat, sharpness):
 _libm = ctypes.CDLL(None)
 _libm.sinf.argtypes = [ctypes.c_float]
 _libm.sinf.restype = ctypes.c_float
+_libm.cosf.argtypes = [ctypes.c_float]
+_libm.cosf.restype = ctypes.c_float
 sinf = np.frompyfunc(_libm.sinf, 1, 1)
+
+
+def sin32(x):
+    """Rust `f32::sin`."""
+    return F(_libm.sinf(F(x)))
+
+
+def cos32(x):
+    """Rust `f32::cos`."""
+    return F(_libm.cosf(F(x)))
 
 
 def hash32(n):
