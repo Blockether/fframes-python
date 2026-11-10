@@ -326,6 +326,14 @@ class Shader:
     def draw(self, frame: Frame, uniforms: dict[str, Uniform] | None = None) -> Svgr: ...
 
 def center_spectrum_low_frequencies(spectrum: Sequence[float]) -> list[float]: ...
+def wave_path(
+    levels: Sequence[float],
+    x_step: int,
+    y_scale: float,
+    *,
+    max_height: float = 600.0,
+    baseline: float = 1080.0,
+) -> str: ...
 
 class AnimationRuntime:
     duration: float

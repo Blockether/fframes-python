@@ -19,6 +19,9 @@ clap = { version = "4.5", features = ["derive"] }
 serde_json = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# Hardware decoding, as the fframes examples build: VideoToolbox decodes some codecs (ProRes)
+# to slightly different pixels than the software decoder.
+fframes = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["videotoolbox"] }
 fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "dc32a0ccf576ace777aa85c763d3f87822471457", features = ["metal", "cli"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]

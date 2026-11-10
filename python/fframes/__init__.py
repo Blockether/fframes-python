@@ -34,6 +34,7 @@ from fframes._fframes import (
     svgr,
     template,
     timeline,
+    wave_path,
 )
 
 __all__ = [
@@ -64,4 +65,5 @@ __all__ = [
     "svgr",
     "template",
     "timeline",
+    "wave_path",
 ]

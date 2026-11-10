@@ -36,3 +36,30 @@ at = "0s,1s,2.5s,4s"
 args = []
 renderer = "cpu"
 max_diff = 0
+
+[tiktok]
+script = "examples/tiktok.py"
+rust_bin = "tiktok_example_bin"
+example_dir = "tiktok"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[podcast]
+script = "examples/podcast.py"
+rust_bin = "podcast_example_bin"
+example_dir = "podcast"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0
+
+[audio-announce]
+script = "examples/audio_announce.py"
+rust_bin = "audio_announce_example_bin"
+example_dir = "audio-announce"
+at = "0s,1s,2.5s,4s"
+args = []
+renderer = "cpu"
+max_diff = 0

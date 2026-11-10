@@ -180,10 +180,13 @@ impl PyFrame {
             speed,
             ..Default::default()
         };
-        match self.inner.get_synced_video_frame(ctx.get()?, file, &input) {
-            Some(frame) => media_api::video_frame(py, &*frame, width, height),
-            None => Ok(None),
-        }
+        let (ctx, inner) = (ctx.get()?, &self.inner);
+        media_api::without_gil(py, || {
+            let frame = inner.get_synced_video_frame(ctx, file, &input)?;
+            media_api::DecodedFrame::new(&*frame, width, height)
+        })
+        .map(|frame| frame.into_py(py))
+        .transpose()
     }
 
     /// The frame at `seconds` of the video file `file`, wherever this frame is.
@@ -197,10 +200,13 @@ impl PyFrame {
         width: Option<u32>,
         height: Option<u32>,
     ) -> PyResult<Option<PyVideoFrame>> {
-        match self.inner.video_frame_at(ctx.get()?, file, seconds, None) {
-            Some(frame) => media_api::video_frame(py, &*frame, width, height),
-            None => Ok(None),
-        }
+        let (ctx, inner) = (ctx.get()?, &self.inner);
+        media_api::without_gil(py, || {
+            let frame = inner.video_frame_at(ctx, file, seconds, None)?;
+            media_api::DecodedFrame::new(&*frame, width, height)
+        })
+        .map(|frame| frame.into_py(py))
+        .transpose()
     }
 
     /// The spectrum of the audio `audio` at this frame: `sample_size / 2` levels.

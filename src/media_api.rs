@@ -236,32 +236,64 @@ pub struct PyVideoFrame {
     pub stream_duration: f32,
 }
 
-/// Reads a synced frame into a `VideoFrame`, resized when `width` or `height` is given.
-pub fn video_frame<'m>(
-    py: Python<'_>,
-    frame: &impl fframes::FFramesSyncedVideoFrame<'m>,
-    width: Option<u32>,
-    height: Option<u32>,
-) -> PyResult<Option<PyVideoFrame>> {
-    let image = match resize_to(width, height, (frame.width(), frame.height())) {
-        Some((width, height)) => {
-            match frame.into_resized_image(&fframes::media::FrameConvertOptions {
+/// A decoded video frame, before it becomes a Python `VideoFrame`.
+pub struct DecodedFrame {
+    image: Arc<fframes::usvgr::PreloadedImageData>,
+    width: u32,
+    height: u32,
+    timestamp_seconds: f32,
+    stream_fps: f32,
+    stream_duration: f32,
+}
+
+impl DecodedFrame {
+    /// Converts a synced frame, resized when `width` or `height` is given. It does not need
+    /// the GIL, so callers run it in `Python::detach`.
+    pub fn new<'m>(
+        frame: &impl fframes::FFramesSyncedVideoFrame<'m>,
+        width: Option<u32>,
+        height: Option<u32>,
+    ) -> Option<Self> {
+        let image = match resize_to(width, height, (frame.width(), frame.height())) {
+            Some((width, height)) => frame.into_resized_image(&fframes::media::FrameConvertOptions {
                 resize: fframes::media::ResizeVideoFrame { width, height },
-            }) {
-                Some(image) => image,
-                None => return Ok(None),
-            }
-        }
-        None => frame.into_image(),
-    };
-    Ok(Some(PyVideoFrame {
-        image: Py::new(py, PyImage { data: image.image })?,
-        width: frame.width(),
-        height: frame.height(),
-        timestamp_seconds: frame.timestamp_seconds(),
-        stream_fps: frame.stream_fps(),
-        stream_duration: frame.stream_duration_in_seconds(),
-    }))
+            })?,
+            None => frame.into_image(),
+        };
+        Some(Self {
+            image: image.image,
+            width: frame.width(),
+            height: frame.height(),
+            timestamp_seconds: frame.timestamp_seconds(),
+            stream_fps: frame.stream_fps(),
+            stream_duration: frame.stream_duration_in_seconds(),
+        })
+    }
+
+    pub fn into_py(self, py: Python<'_>) -> PyResult<PyVideoFrame> {
+        Ok(PyVideoFrame {
+            image: Py::new(py, PyImage { data: self.image })?,
+            width: self.width,
+            height: self.height,
+            timestamp_seconds: self.timestamp_seconds,
+            stream_fps: self.stream_fps,
+            stream_duration: self.stream_duration,
+        })
+    }
+}
+
+/// Runs `f` without the GIL, so other render threads run Python meanwhile. `f` uses only
+/// the Rust data of the frame and the context that the calling thread lends it.
+pub fn without_gil<T>(py: Python<'_>, f: impl FnOnce() -> T) -> T {
+    struct AssertSend<T>(T);
+    // SAFETY: the calling thread waits for `f` and touches no Python object inside it.
+    unsafe impl<T> Send for AssertSend<T> {}
+    let f = AssertSend(f);
+    py.detach(move || {
+        let f = f;
+        AssertSend((f.0)())
+    })
+    .0
 }
 
 /// The output size for `width`/`height` keywords, keeping the aspect of `frame` when only
