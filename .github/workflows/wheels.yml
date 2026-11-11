@@ -29,7 +29,8 @@ jobs:
       matrix:
         include:
           - name: macos-arm64
-            os: macos-14
+            # The wheel targets macOS 14 (MACOSX_DEPLOYMENT_TARGET); the macos-14 image is retired.
+            os: macos-15
           - name: linux-x86_64
             os: ubuntu-22.04
             plat: manylinux_2_35_x86_64
