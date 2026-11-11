@@ -41,7 +41,21 @@ python hello.py timeline --json              # scenes, duration, audio tracks
 
 ## Install
 
-Build from source with [maturin](https://www.maturin.rs). You need Rust (stable) and the
+Each [release](https://github.com/Blockether/fframes-python/releases) has wheels for Python 3.10
+or later, with FFmpeg and its codecs inside:
+
+| System | Wheel |
+|---|---|
+| macOS 15 or later, Apple silicon | `macosx_15_0_arm64` |
+| Linux x86_64, glibc 2.35 or later | `manylinux_2_35_x86_64` |
+| Linux arm64, glibc 2.35 or later | `manylinux_2_35_aarch64` |
+| Windows x64 | `win_amd64` |
+
+```bash
+pip install fframes --find-links https://github.com/Blockether/fframes-python/releases/expanded_assets/v0.1.0
+```
+
+To build from source, use [maturin](https://www.maturin.rs). You need Rust (stable) and the
 system encoders that fframes links (see the build notes in the
 [fframes README](https://github.com/Blockether/fframes)):
 
@@ -164,14 +178,9 @@ render in less than a second.
 
 ## Vis extension
 
-[`vis-extension/`](vis-extension) is a [Vis](https://github.com/Blockether/vis) extension:
-the agent writes a video script with the `vis-fframes/fframes` skill and checks it with
-the `fframes` tools: `new`, `timeline`, `frames` (attached PNGs), `inspect`, `strip` and
-`render`.
-
-```bash
-vis-agent extension install ./vis-extension --global --trust   # then /reload
-```
+[vis-reel](https://github.com/Blockether/vis-reel) is the [Vis](https://github.com/Blockether/vis)
+extension for fframes videos. The agent writes a video script with its skill and checks it with the
+`reel` tools: `new`, `timeline`, `frames` (attached PNGs), `inspect`, `strip` and `render`.
 
 ## License
 
