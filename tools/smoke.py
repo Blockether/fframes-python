@@ -43,6 +43,7 @@ sys.exit(ff.cli(Smoke(), load_system_fonts=False))
 def run(script: Path, *args: str):
     done = subprocess.run(
         [sys.executable, str(script), "--json", *args],
+        check=False,
         capture_output=True,
         text=True,
         cwd=script.parent,
@@ -61,14 +62,14 @@ def corner_pixel(png: Path) -> tuple[int, int, int, tuple[int, int]]:
     """The RGB of pixel (0, 0) and the image size, from the PNG itself."""
     data = png.read_bytes()
     assert data[:8] == b"\x89PNG\r\n\x1a\n", f"{png} is not a PNG"
-    pos, idat, size, bpp = 8, b"", (0, 0), 0
+    pos, idat, size = 8, b"", (0, 0)
     while pos < len(data):
         length, kind = struct.unpack(">I4s", data[pos : pos + 8])
         body = data[pos + 8 : pos + 8 + length]
         if kind == b"IHDR":
             width, height, depth, color = struct.unpack(">IIBB", body[:10])
             assert depth == 8 and color in (2, 6), f"unexpected PNG format {depth} {color}"
-            size, bpp = (width, height), 3 if color == 2 else 4
+            size = (width, height)
         elif kind == b"IDAT":
             idat += body
         pos += 12 + length
