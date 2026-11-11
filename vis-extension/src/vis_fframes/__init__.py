@@ -171,7 +171,8 @@ def run_json(
         tail = cause or "\n".join(done.stderr.strip().splitlines()[-15:])
         if "No module named 'fframes'" in done.stderr:
             tail += (
-                f"\nfframes is not installed for {argv[0]}: pip install fframes, or pass python=..."
+                f"\nfframes is not installed for {argv[0]}: pip install "
+                '"git+https://github.com/Blockether/fframes-python", or pass python=...'
             )
         raise FFramesError(tail or f"{path.name} exited with {done.returncode}")
     return data
