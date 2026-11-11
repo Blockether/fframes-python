@@ -18,6 +18,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use crate::frame::{PyContext, PyFrame};
+use crate::gil::detached;
 use crate::svgr::{Nodes, PySvgr};
 
 fn own_str(value: StringStorage<'_>) -> StringStorage<'static> {
@@ -325,38 +326,47 @@ impl PyCaptions {
 
     /// The captions at `frame`, or at track second `at`.
     #[pyo3(signature = (frame, ctx, *, at = None))]
-    fn render(&self, frame: &PyFrame, ctx: &PyContext, at: Option<f64>) -> PyResult<PySvgr> {
-        self.draw(frame, ctx, at, None, false)
+    fn render(
+        &self,
+        py: Python<'_>,
+        frame: &PyFrame,
+        ctx: &PyContext,
+        at: Option<f64>,
+    ) -> PyResult<PySvgr> {
+        self.draw(py, frame, ctx, at, None, false)
     }
 
     /// The captions, each visible word drawn by `draw(word, content) -> Svgr`.
     #[pyo3(signature = (frame, ctx, draw, *, at = None))]
     fn render_with(
         &self,
+        py: Python<'_>,
         frame: &PyFrame,
         ctx: &PyContext,
         draw: &Bound<'_, PyAny>,
         at: Option<f64>,
     ) -> PyResult<PySvgr> {
-        self.draw(frame, ctx, at, Some(draw), false)
+        self.draw(py, frame, ctx, at, Some(draw), false)
     }
 
     /// The captions, each active timed word drawn by `draw(word, content) -> Svgr`.
     #[pyo3(signature = (frame, ctx, draw, *, at = None))]
     fn highlight_with(
         &self,
+        py: Python<'_>,
         frame: &PyFrame,
         ctx: &PyContext,
         draw: &Bound<'_, PyAny>,
         at: Option<f64>,
     ) -> PyResult<PySvgr> {
-        self.draw(frame, ctx, at, Some(draw), true)
+        self.draw(py, frame, ctx, at, Some(draw), true)
     }
 }
 
 impl PyCaptions {
     fn draw(
         &self,
+        py: Python<'_>,
         frame: &PyFrame,
         ctx: &PyContext,
         at: Option<f64>,
@@ -368,6 +378,8 @@ impl PyCaptions {
         // A clone shares the caches of the frame and leaves the Python frame free for callbacks.
         let mut inner = frame.inner.clone();
         let error: RefCell<Option<PyErr>> = RefCell::new(None);
+        // The layout runs without the GIL, so that the frame threads run in parallel as in Rust.
+        // A word callback takes the GIL again.
         let callback = |scope: &CaptionWordScope<'_, '_>, content: fframes::Svgr<'_>| {
             let Some(draw) = draw else {
                 return own_nodes(content.as_subtree());
@@ -375,8 +387,7 @@ impl PyCaptions {
             if (active_only && !scope.is_active()) || error.borrow().is_some() {
                 return own_nodes(content.as_subtree());
             }
-            let py = draw.py();
-            let result = (|| {
+            let result = Python::attach(|py| -> PyResult<Nodes> {
                 let word = Bound::new(
                     py,
                     PyCaptionWord {
@@ -398,7 +409,7 @@ impl PyCaptions {
                         "a caption callback must return fframes.Svgr or None",
                     )),
                 }
-            })();
+            });
             result.unwrap_or_else(|e| {
                 *error.borrow_mut() = Some(e);
                 Nodes::new()
@@ -407,15 +418,16 @@ impl PyCaptions {
         let callback = |scope: &CaptionWordScope<'_, '_>, content: fframes::Svgr<'_>| {
             PySvgr::into_svgr(callback(scope, content))
         };
-        let svg = match at {
-            Some(at) => captions.render_at_with(at, &mut inner, ctx, callback),
-            None => captions.render_with(&mut inner, ctx, callback),
-        };
+        let nodes = detached(py, || {
+            let svg = match at {
+                Some(at) => captions.render_at_with(at, &mut inner, ctx, callback),
+                None => captions.render_with(&mut inner, ctx, callback),
+            };
+            own_nodes(svg.as_subtree())
+        });
         if let Some(error) = error.into_inner() {
             return Err(error);
         }
-        Ok(PySvgr {
-            nodes: own_nodes(svg.as_subtree()),
-        })
+        Ok(PySvgr { nodes })
     }
 }
