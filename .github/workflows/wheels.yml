@@ -29,7 +29,6 @@ jobs:
       matrix:
         include:
           - name: macos-arm64
-            # The wheel targets macOS 14 (MACOSX_DEPLOYMENT_TARGET); the macos-14 image is retired.
             os: macos-15
           - name: linux-x86_64
             os: ubuntu-22.04
@@ -44,8 +43,8 @@ jobs:
       run:
         shell: bash
     env:
-      # Homebrew codec libraries of the runner are built for macOS 14.
-      MACOSX_DEPLOYMENT_TARGET: "14.0"
+      # The Homebrew codec libraries of the runner are built for macOS 15.
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
     steps:
       - uses: actions/checkout@v5
         with:
