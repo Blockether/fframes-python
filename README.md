@@ -109,7 +109,7 @@ They read their media from a fframes checkout (`$FFRAMES_DIR`, default `../ffram
 | [`conference-splash-screen`](https://github.com/Blockether/fframes/tree/main/examples/conference-splash-screen) | [`examples/conference_splash_screen.py`](examples/conference_splash_screen.py) | cpu | every frame equal |
 | [`low-poly-art`](https://github.com/Blockether/fframes/tree/main/examples/low-poly-art) | [`examples/low_poly_art/main.py`](examples/low_poly_art/main.py) | cpu | every frame equal |
 | [`beta`](https://github.com/Blockether/fframes/tree/main/examples/beta) | [`examples/beta/main.py`](examples/beta/main.py) | cpu | every frame outside 380..520, where the Rust example draws random content |
-| [`lottie`](https://github.com/Blockether/fframes/tree/main/examples/lottie) | [`examples/lottie/main.py`](examples/lottie/main.py) | cpu | every frame but 352 and 469 (a few pixels, max 9 of 255) |
+| [`lottie`](https://github.com/Blockether/fframes/tree/main/examples/lottie) | [`examples/lottie/main.py`](examples/lottie/main.py) | cpu | every frame equal |
 | [`pixel-memory`](https://github.com/Blockether/fframes/tree/main/examples/pixel-memory) | [`examples/pixel_memory/main.py`](examples/pixel_memory/main.py) | cpu | every frame equal |
 | [`shader-mode`](https://github.com/Blockether/fframes/tree/main/examples/shader-mode) | [`examples/shader_mode.py`](examples/shader_mode.py) | skia-cpu | every frame equal |
 | [`made-of-motion`](https://github.com/Blockether/fframes/tree/main/examples/made-of-motion) | [`examples/made_of_motion.py`](examples/made_of_motion.py) | skia-cpu | every frame equal |

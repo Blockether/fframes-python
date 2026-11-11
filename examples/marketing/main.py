@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _media
 import fframes as ff
+from _f32 import fmt32
 
 _F32 = struct.Struct("f")
 
@@ -22,13 +23,8 @@ def f32(x: float) -> float:
 
 
 def f32_text(x: float) -> str:
-    """`x` as Rust prints an f32 with `{}`: the shortest text that reads back to the same f32."""
-    x = f32(x)
-    for digits in range(1, 10):
-        text = f"{x:.{digits}g}"
-        if f32(float(text)) == x:
-            return text
-    return repr(x)
+    """`x` as Rust prints an f32 with `{}`."""
+    return fmt32(f32(x))
 
 
 SPRING = ff.Easing.spring(1.85, 130.0, 16.0)
