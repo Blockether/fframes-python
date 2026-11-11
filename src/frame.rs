@@ -82,6 +82,7 @@ impl PyFrame {
     #[allow(clippy::too_many_arguments)]
     fn text_width(
         &mut self,
+        py: Python<'_>,
         ctx: &PyContext,
         text: &str,
         family: String,
@@ -91,7 +92,10 @@ impl PyFrame {
         stretch: &str,
     ) -> PyResult<Option<usize>> {
         let font = Font::new(family, size, weight, style, stretch)?;
-        Ok(self.inner.text_width(ctx.get()?, font.query(), text))
+        let (ctx, inner) = (ctx.get()?, &mut self.inner);
+        Ok(crate::gil::detached(py, || {
+            inner.text_width(ctx, font.query(), text)
+        }))
     }
 
     /// `text` shortened to `max_width` pixels. `overflow` is "ellipsis", "clip" or a marker.
@@ -99,6 +103,7 @@ impl PyFrame {
     #[allow(clippy::too_many_arguments)]
     fn text_fit(
         &mut self,
+        py: Python<'_>,
         ctx: &PyContext,
         text: &str,
         max_width: usize,
@@ -110,16 +115,13 @@ impl PyFrame {
         overflow: &str,
     ) -> PyResult<Option<String>> {
         let font = Font::new(family, size, weight, style, stretch)?;
-        Ok(self
-            .inner
-            .text_fit(
-                ctx.get()?,
-                font.query(),
-                text,
-                max_width,
-                media_api::overflow(overflow),
-            )
-            .map(std::borrow::Cow::into_owned))
+        let (ctx, inner) = (ctx.get()?, &mut self.inner);
+        let overflow = media_api::overflow(overflow);
+        Ok(crate::gil::detached(py, || {
+            inner
+                .text_fit(ctx, font.query(), text, max_width, overflow)
+                .map(std::borrow::Cow::into_owned)
+        }))
     }
 
     /// `text` wrapped into lines of at most `width` pixels, or `None` if the font is missing.
@@ -127,6 +129,7 @@ impl PyFrame {
     #[allow(clippy::too_many_arguments)]
     fn text_layout(
         &mut self,
+        py: Python<'_>,
         ctx: &PyContext,
         text: &str,
         width: usize,
@@ -160,10 +163,11 @@ impl PyFrame {
             text_anchor,
             opacity,
         };
-        Ok(self
-            .inner
-            .text_break_lines_structure(ctx.get()?, text, wrap.opts())
-            .map(|structure| PyTextLayout { structure, wrap }))
+        let (ctx, inner) = (ctx.get()?, &mut self.inner);
+        let structure = crate::gil::detached(py, || {
+            inner.text_break_lines_structure(ctx, text, wrap.opts())
+        });
+        Ok(structure.map(|structure| PyTextLayout { structure, wrap }))
     }
 
     /// The synced frame of the video file `file`: frame `index` of this video shows the file at
@@ -220,6 +224,7 @@ impl PyFrame {
     #[pyo3(signature = (ctx, audio, *, sample_size = 512, smooth_level = 0, window = None))]
     fn visualize_audio(
         &self,
+        py: Python<'_>,
         ctx: &PyContext,
         audio: &str,
         sample_size: usize,
@@ -230,14 +235,16 @@ impl PyFrame {
             .get()?
             .get_audio(audio)
             .ok_or_else(|| PyValueError::new_err(format!("no audio {audio:?} in the media")))?;
-        Ok(self
-            .inner
-            .visualize_audio_frame(fframes::VisualizeFrameInput {
-                audio: data,
-                sample_size: media_api::sample_size(sample_size)?,
-                smooth_level,
-                window: media_api::window(window)?,
-            }))
+        let input = fframes::VisualizeFrameInput {
+            audio: data,
+            sample_size: media_api::sample_size(sample_size)?,
+            smooth_level,
+            window: media_api::window(window)?,
+        };
+        let inner = &self.inner;
+        Ok(crate::gil::detached(py, || {
+            inner.visualize_audio_frame(input)
+        }))
     }
 
     /// The subtitle text of `file` at this frame, or `None`.
@@ -255,6 +262,7 @@ impl PyFrame {
     #[allow(clippy::too_many_arguments)]
     fn play_lottie(
         &self,
+        py: Python<'_>,
         ctx: &PyContext,
         file: &str,
         start: f32,
@@ -274,11 +282,9 @@ impl PyFrame {
             width,
             height,
         };
+        let (ctx, inner) = (ctx.get()?, &self.inner);
         Ok(PySvgr {
-            nodes: self
-                .inner
-                .play_lottie(ctx.get()?, file, options)
-                .as_subtree(),
+            nodes: crate::gil::detached(py, || inner.play_lottie(ctx, file, options).as_subtree()),
         })
     }
 
