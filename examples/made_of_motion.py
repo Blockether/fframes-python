@@ -847,6 +847,7 @@ def main() -> int:
         MadeOfMotion(ink_only=args.ink_only),
         [sys.argv[0], *rest],
         media=ff.Media(_media.folder(EXAMPLE), folder),
+        load_system_fonts=False,
         codec_params={"crf": "16", "preset": "medium"},
         limiter=False,
         default_output=Path(__file__).parent / "output" / "made-of-motion.mp4",

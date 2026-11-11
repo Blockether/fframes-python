@@ -98,6 +98,7 @@ def main() -> int:
         NeonTriangle(),
         [sys.argv[0], *rest],
         media=_media.media("neon-triangle"),
+        load_system_fonts=False,
         encoder=args.video_codec,
         codec_params={"crf": "16", "preset": "slow"},
         renderer="gpu",

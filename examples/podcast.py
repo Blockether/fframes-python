@@ -147,7 +147,7 @@ class PodcastVideo:
 
 def main() -> int:
     video = PodcastVideo(goose_audio="final.mp3", duck_audio="final.mp3", guest_audio="final.mp3")
-    return ff.cli(video, media=_media.media("podcast"))
+    return ff.cli(video, media=_media.media("podcast"), load_system_fonts=False)
 
 
 if __name__ == "__main__":

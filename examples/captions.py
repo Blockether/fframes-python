@@ -79,4 +79,6 @@ class CaptionVideo:
 
 
 if __name__ == "__main__":
-    sys.exit(ff.cli(CaptionVideo(), media=_media.media("captions", mono=True)))
+    sys.exit(
+        ff.cli(CaptionVideo(), media=_media.media("captions", mono=True), load_system_fonts=False)
+    )

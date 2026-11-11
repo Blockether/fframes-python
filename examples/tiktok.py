@@ -111,6 +111,7 @@ def main() -> int:
     return ff.cli(
         GooseVideo(),
         media=_media.media("tiktok", "media/files"),
+        load_system_fonts=False,
         tmp_dir="test_render",
         default_output="out.webm",
         encoder="libvpx-vp9",

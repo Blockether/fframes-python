@@ -2107,6 +2107,7 @@ def main() -> int:
     return ff.cli(
         IntroVideo(),
         media=ff.Media(_media.folder(EXAMPLE), _media.folder(EXAMPLE, "dynamic_media")),
+        load_system_fonts=False,
         codec_params={"crf": "16", "preset": "medium", "tune": "film"},
         master_gain_db=3.5,
         limiter={"ceiling_db": -1.3},

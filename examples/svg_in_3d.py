@@ -193,6 +193,7 @@ def main() -> int:
         video,
         [sys.argv[0], *rest],
         media=_media.media("svg-in-3d"),
+        load_system_fonts=False,
         default_output="out.mp4",
         # Like the Rust example: Skia on the GPU unless --cpu.
         renderer=None if args.cpu else "gpu",

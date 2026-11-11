@@ -479,6 +479,7 @@ def main() -> int:
         ShaderMode(has_recording=RECORDING in media.videos),
         sys.argv,
         media=media,
+        load_system_fonts=False,
         codec_params={"crf": "17", "preset": "medium"},
         # Play the source soundtrack in stereo, without gain or limiting.
         limiter=False,

@@ -77,6 +77,7 @@ def main() -> int:
         ShadersVideo(),
         [sys.argv[0], *rest],
         media=_media.media("shaders"),
+        load_system_fonts=False,
         encoder=args.video_codec,
         codec_params={"crf": "20", "preset": "slow"},
         renderer="gpu",

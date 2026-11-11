@@ -523,6 +523,7 @@ def main() -> int:
         video,
         [sys.argv[0], *rest],
         media=media,
+        load_system_fonts=False,
         codec_params={"crf": "17", "preset": "medium", "tune": "film"},
         default_output="out.mp4",
         renderer=None if args.cpu else "gpu",

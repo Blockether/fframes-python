@@ -40,7 +40,12 @@ class AnamorphicVideo:
 
 
 def main() -> int:
-    return ff.cli(AnamorphicVideo(), media=_media.media("anamorphic-video"), codec_params={})
+    return ff.cli(
+        AnamorphicVideo(),
+        media=_media.media("anamorphic-video"),
+        codec_params={},
+        load_system_fonts=False,
+    )
 
 
 if __name__ == "__main__":

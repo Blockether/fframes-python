@@ -305,6 +305,9 @@ if __name__ == "__main__":
         ff.cli(
             SignalLabVideo(),
             media=_media.media("signal-lab", mono=True),
+            load_system_fonts=False,
             codec_params={"crf": "20", "preset": "medium", "tune": "animation"},
+            renderer="gpu",
+            gpu_contexts="max",
         )
     )
