@@ -147,7 +147,7 @@ Median of 3 interleaved full renders on an Apple M-series Mac (14 cores), defaul
 | neon-triangle | 1.81 | 1.85 | 0.98 | 16.22 | 16.30 | 0.99 | |
 | shaders | 2.44 | 2.40 | 1.02 | 18.11 | 18.13 | 1.00 | |
 | anamorphic-video | 0.23 | 0.20 | 1.16 | 1.08 | 1.04 | 1.05 | |
-| teej-podcast | – | – | – | – | – | – | VideoToolbox error, also in Rust (see below) |
+| teej-podcast | 25.38 | 25.94 | 0.98 | 37.65 | 37.27 | 1.01 | |
 | conference-splash-screen | 2.68 | 2.63 | 1.02 | 8.11 | 8.06 | 1.01 | |
 | low-poly-art | 2.14 | 2.29 | 0.93 | 18.15 | 22.77 | 0.80 | |
 | beta | 7.31 | 6.89 | 1.06 | 68.83 | 68.89 | 1.00 | |
@@ -156,8 +156,8 @@ Median of 3 interleaved full renders on an Apple M-series Mac (14 cores), defaul
 | shader-mode | 5.06 | 4.97 | 1.02 | 44.61 | 44.17 | 1.01 | |
 | made-of-motion | 10.24 | 10.02 | 1.02 | 80.76 | 80.59 | 1.00 | |
 | svg-in-3d | 5.62 | 5.96 | 0.94 | 69.89 | 71.82 | 0.97 | |
-
-<!-- bench-table -->
+| fframes-intro | 64.86 | 91.75 | 0.71 | 683.40 | 687.52 | 0.99 | 1 run |
+| arm | 561.00 | 387.57 | 1.45 | 3798.36 | 3864.87 | 0.98 | 1 run, load average 25; `render 14s..20s` 3 times in turns: ratio 0.95 |
 
 ## Vis extension
 
