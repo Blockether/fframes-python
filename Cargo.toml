@@ -1,6 +1,6 @@
 [package]
 name = "fframes-python"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 description = "Python bindings for fframes, the Rust and SVG video framework"
@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.30", features = ["abi3-py310"] }
-fframes = { git = "https://github.com/Blockether/fframes", rev = "8c0938c2f06e7b91a636fc0848608ca444d3703c", features = ["cli", "compile-time-svgtree", "captions", "lottie", "3d", "exif", "wgpu"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "4ebc3eacd1a32b3bcf8e4fa532facb45af6ff85e", features = ["cli", "compile-time-svgtree", "captions", "lottie", "3d", "exif", "wgpu"] }
 rand = "=0.8.5"
 simplecss = "0.2.2"
 clap = { version = "4.5", features = ["derive"] }
@@ -22,15 +22,15 @@ serde_json = "1"
 [target.'cfg(target_os = "macos")'.dependencies]
 # Hardware decoding, as the fframes examples build: VideoToolbox decodes some codecs (ProRes)
 # to slightly different pixels than the software decoder.
-fframes = { git = "https://github.com/Blockether/fframes", rev = "8c0938c2f06e7b91a636fc0848608ca444d3703c", features = ["videotoolbox"] }
-fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "8c0938c2f06e7b91a636fc0848608ca444d3703c", features = ["metal", "cli"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "4ebc3eacd1a32b3bcf8e4fa532facb45af6ff85e", features = ["videotoolbox"] }
+fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "4ebc3eacd1a32b3bcf8e4fa532facb45af6ff85e", features = ["metal", "cli"] }
 
 [target.'cfg(not(target_os = "macos"))'.dependencies]
-fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "8c0938c2f06e7b91a636fc0848608ca444d3703c", features = ["vulkan", "cli"] }
+fframes_skia_renderer = { git = "https://github.com/Blockether/fframes", rev = "4ebc3eacd1a32b3bcf8e4fa532facb45af6ff85e", features = ["vulkan", "cli"] }
 
 # FFmpeg codecs, portable so cached source builds work across CPUs.
 [target.'cfg(not(windows))'.dependencies]
-fframes = { git = "https://github.com/Blockether/fframes", rev = "8c0938c2f06e7b91a636fc0848608ca444d3703c", features = ["h264", "h265", "vpx", "opus", "libav-agree-gpl", "build-portable"] }
+fframes = { git = "https://github.com/Blockether/fframes", rev = "4ebc3eacd1a32b3bcf8e4fa532facb45af6ff85e", features = ["h264", "h265", "vpx", "opus", "libav-agree-gpl", "build-portable"] }
 
 [profile.release]
 codegen-units = 16
